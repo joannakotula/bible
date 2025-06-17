@@ -1,0 +1,168 @@
+Old Testament:
+  - name: Księga Rodzaju
+    abbr: Rdz
+    eng: Genesis
+  - name: Księga Wyjścia
+    abbr: Wj
+    eng: Exodus
+  - name: Księga Kapłańska
+    abbr: Kpł
+    eng: Leviticus
+  - name: Księga Liczb
+    abbr: Lb
+    eng: Numbers
+  - name: Księga Powtórzonego Prawa
+    abbr: Pwt
+    eng: Deuteronomy
+  - name: Księga Jozuego
+    abbr: Joz
+    eng: Joshua
+  - name: Księga Sędziów
+    abbr: Sdz
+    eng: Judges
+  - name: Księga Rut
+    abbr: Rt
+    eng: Ruth
+  - name: Pierwsza Księga Samuela
+    abbr: 1 Sm
+    eng: 1 Samuel
+  - name: Druga Księga Samuela
+    abbr: 2 Sm
+    eng: 2 Samuel
+  - name: Pierwsza Księga Królewska
+    abbr: 1 Krl
+    eng: 1 Kings
+  - name: Druga Księga Królewska
+    abbr: 2 Krl
+    eng: 2 Kings
+  - name: Pierwsza Księga Kronik
+    abbr: 1 Krn
+    eng: 1 Chronicles
+  - name: Druga Księga Kronik
+    abbr: 2 Krn
+    eng: 2 Chronicles
+  - name: Księga Ezdrasza
+    abbr: Ezd
+    eng: Ezra
+  - name: Księga Nehemiasza
+    abbr: Ne
+    eng: Nehemiah
+  - name: Księga Tobiasza
+    abbr: Tb
+    eng: Tobit
+  - name: Księga Judyty
+    abbr: Jdt
+    eng: Judith
+  - name: Księga Estery
+    abbr: Est
+    eng: Esther
+  - name: Pierwsza Księga Machabejska
+    abbr: 1 Mch
+    eng: 1 Maccabees
+  - name: Druga Księga Machabejska
+    abbr: 2 Mch
+    eng: 2 Maccabees
+  - name: Księga Hioba
+    abbr: Hi
+    eng: Job
+  - name: Księga Psalmów
+    abbr: Ps
+    eng: Psalms
+  - name: Księga Przysłów
+    abbr: Prz
+    eng: Proverbs
+  - name: Księga Koheleta
+    abbr: Koh
+    eng: Ecclesiastes
+  - name: Pieśń nad Pieśniami
+    abbr: Pnp
+    eng: Song of Songs
+  - name: Księga Mądrości
+    abbr: Mdr
+    eng: Wisdom
+  - name: Mądrość Syracha
+    abbr: Syr
+    eng: Sirach
+
+New Testament:
+  - name: Ewangelia według św. Mateusza
+    abbr: Mt
+    eng: Matthew
+  - name: Ewangelia według św. Marka
+    abbr: Mk
+    eng: Mark
+  - name: Ewangelia według św. Łukasza
+    abbr: Łk
+    eng: Luke
+  - name: Ewangelia według św. Jana
+    abbr: J
+    eng: John
+  - name: Dzieje Apostolskie
+    abbr: Dz
+    eng: Acts
+  - name: List do Rzymian
+    abbr: Rz
+    eng: Romans
+  - name: Pierwszy List do Koryntian
+    abbr: 1 Kor
+    eng: 1 Corinthians
+  - name: Drugi List do Koryntian
+    abbr: 2 Kor
+    eng: 2 Corinthians
+  - name: List do Galatów
+    abbr: Ga
+    eng: Galatians
+  - name: List do Efezjan
+    abbr: Ef
+    eng: Ephesians
+  - name: List do Filipian
+    abbr: Flp
+    eng: Philippians
+  - name: List do Kolosan
+    abbr: Kol
+    eng: Colossians
+  - name: Pierwszy List do Tesaloniczan
+    abbr: 1 Tes
+    eng: 1 Thessalonians
+  - name: Drugi List do Tesaloniczan
+    abbr: 2 Tes
+    eng: 2 Thessalonians
+  - name: Pierwszy List do Tymoteusza
+    abbr: 1 Tm
+    eng: 1 Timothy
+  - name: Drugi List do Tymoteusza
+    abbr: 2 Tm
+    eng: 2 Timothy
+  - name: List do Tytusa
+    abbr: Tt
+    eng: Titus
+  - name: List do Filemona
+    abbr: Flm
+    eng: Philemon
+  - name: List do Hebrajczyków
+    abbr: Hbr
+    eng: Hebrews
+  - name: List św. Jakuba
+    abbr: Jk
+    eng: James
+  - name: Pierwszy List św. Piotra
+    abbr: 1 P
+    eng: 1 Peter
+  - name: Drugi List św. Piotra
+    abbr: 2 P
+    eng: 2 Peter
+  - name: Pierwszy List św. Jana
+    abbr: 1 J
+    eng: 1 John
+  - name: Drugi List św. Jana
+    abbr: 2 J
+    eng: 2 John
+  - name: Trzeci List św. Jana
+    abbr: 3 J
+    eng: 3 John
+  - name: List św. Judy
+    abbr: Jud
+    eng: Jude
+  - name: Apokalipsa św. Jana
+    abbr: Ap
+    eng: Revelation
