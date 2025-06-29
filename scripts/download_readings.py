@@ -3,6 +3,14 @@ from bs4 import BeautifulSoup
 import yaml
 import time
 
+############################################################
+## There are some known issues:
+# * some sundays do not have information about their number
+# * some fragments have prefix "KROTSZE" - script took the
+#   shorter fragments and added prefix
+############################################################
+
+
 BASE_URL = "https://liturgia.wiara.pl"
 NAWIGATOR_URL = f"{BASE_URL}/Czytania_mszalne/Nawigator/"
 READINGS_PATH=f"/doc/"
