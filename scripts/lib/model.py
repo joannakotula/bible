@@ -8,6 +8,40 @@ WEEKDAY = 'weekday'
 SUNDAY_YEARS = ['A','B','C']
 WEEKDAY_YEARS = ['I', 'II']
 
+class Fragment(object):
+
+    def __init__(self, book_abbr: str, chapter: int, first_verse: str, last_verse: str) -> None:
+        self.book_abbr = book_abbr
+        self.chapter = chapter
+        self.first_verse = first_verse
+        self.last_verse = last_verse
+
+    def __eq__(self, other: object) -> bool:
+        return (self.book_abbr == other.book_abbr 
+                and self.chapter == other.chapter and
+                self.first_verse == other.first_verse and
+                self.last_verse == other.last_verse
+                )
+    
+    def __repr__(self) -> str:
+        return f"{self.book_abbr} {self.chapter}: ({self.first_verse}-{self.last_verse})"
+    
+    @staticmethod
+    def create(book_abbr: str, chapter: int, verses: list[tuple]) -> list:
+        return [Fragment(book_abbr=book_abbr, chapter=chapter, first_verse=t[0], last_verse=t[1]) for t in verses]
+
+    @staticmethod
+    def parse(verses_str: str) -> list:
+        def get_verses(rest: str) -> list[tuple]:
+            found_groups=re.findall("(\d\w*)(-(\d\w*))?",rest)
+            return [(g[0], g[2] if g[2] else g[0]) for g in found_groups]
+
+        verses_str = verses_str.strip()
+        match_book_chapter=re.search("([\d]? ?\w+) (\d+)[^,]*, ([^\(]*)", verses_str)
+        if not match_book_chapter:
+            raise ValueError(f"Unable to determine book/chapter from '{verses_str}'")
+        return Fragment.create(match_book_chapter.group(1), int(match_book_chapter.group(2)), get_verses(match_book_chapter.group(3)))
+
 class Reading(object):
     def __init__(self, full_name: str, day_type: str, year: str = None):
         self.full_name = full_name
