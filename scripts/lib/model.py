@@ -42,7 +42,7 @@ class Fragment(object):
             raise ValueError(f"Unable to determine book/chapter from '{verses_str}'")
         return Fragment.create(match_book_chapter.group(1), int(match_book_chapter.group(2)), get_verses(match_book_chapter.group(3)))
 
-class Reading(object):
+class LiturgicalDay(object):
     def __init__(self, full_name: str, day_type: str, year: str = None):
         self.full_name = full_name
         self.day_type = day_type
@@ -54,7 +54,7 @@ class Reading(object):
                 self.year == other.year)
 
     def __repr__(self):
-        return f"Reading(full_name='{self.full_name}', type='{self.day_type}', year='{self.year}')"
+        return f"LiturgicalDay(full_name='{self.full_name}', type='{self.day_type}', year='{self.year}')"
 
 
     @staticmethod
@@ -73,7 +73,7 @@ class Reading(object):
             else:
                 return SPECIALDAY
 
-        return Reading(full_name=name, day_type=get_date_type(year), year=year)
+        return LiturgicalDay(full_name=name, day_type=get_date_type(year), year=year)
 
 
 
