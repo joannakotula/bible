@@ -2,6 +2,7 @@ import requests
 from bs4 import BeautifulSoup
 import yaml
 import time
+from dataclasses import dataclass
 
 ############################################################
 ## There are some known issues:
@@ -21,6 +22,17 @@ OUTPUT_FILE="data/readings.yaml"
 
 visited_urls = []
 
+@dataclass
+class PeriodLink:
+    name: str
+    url: str
+
+@dataclass
+class ReadingLink:
+    name: str
+    url: str
+    periods: list[str]
+
 def get_period_links():
     res = requests.get(NAWIGATOR_URL)
     soup = BeautifulSoup(res.text, "html.parser")
@@ -30,26 +42,28 @@ def get_period_links():
     for a in soup.select("div.menu_vert_open_ ul li a"):
         href = a.get("href")
         if href and "/Czytania_mszalne/" in href:
-            period_links.append(BASE_URL + href)
+            period_links.append(PeriodLink('', BASE_URL + href))
     return period_links
 
-def get_readings_from_period(url):
-    if url in visited_urls:
+def get_readings_from_period(link: PeriodLink, parents_periods=[]) -> list[ReadingLink]:
+    if link.url in visited_urls:
         return []
-    visited_urls.append(url)
-    res = requests.get(url)
+    visited_urls.append(link.url)
+    res = requests.get(link.url)
     soup = BeautifulSoup(res.text, "html.parser")
     readings = []
-    print(f"Getting readings from {url}")
+    periods = parents_periods + [link.name] if link.name else parents_periods
+
+    print(f"Getting readings from {link.url}")
 
     # Find all links to readings in the given period
     for a in soup.select("div.menu_vert_open_ ul li a"):
         title = a.get_text(strip=True)
         href = a.get("href")
         if href and "/Czytania_mszalne/" in href:
-            readings = readings + get_readings_from_period(BASE_URL + href)
+            readings = readings + get_readings_from_period(PeriodLink(title, BASE_URL + href), periods)
         elif href and READINGS_PATH in href:
-            readings.append((title, BASE_URL + href))
+            readings.append(ReadingLink(title, BASE_URL + href, periods))
     return readings
 
 def get_key_from_title(title: str):
@@ -92,20 +106,21 @@ def collect_all_readings():
     period_links = get_period_links()
     all_readings = []
 
-    for period_url in period_links:
-        period_readings = get_readings_from_period(period_url)
-        for title, reading_url in period_readings:
-            print(f"Pobieram: {title}")
-            print(reading_url)
+    for link in period_links:
+        period_readings = get_readings_from_period(link)
+        for reading in period_readings:
+            print(f"Pobieram: {reading.name}")
+            print(reading.url)
             try:
-                czytania = parse_readings(reading_url)
+                content = parse_readings(reading.url)
                 all_readings.append({
-                    "nazwa": title,
-                    "czytania": czytania
+                    "name": reading.name,
+                    "readings": content,
+                    "periods": reading.periods
                 })
                 time.sleep(0.5)  # avoid overloading the server
             except Exception as e:
-                print(f"❌ Błąd przy {title}: {e}")
+                print(f"❌ Błąd przy {reading.name}: {e}")
                 continue
 
     return all_readings
