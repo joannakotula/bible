@@ -1,11 +1,9 @@
 import unittest
 from parameterized import parameterized
-from lib.model import Reading, SUNDAY, SPECIALDAY, WEEKDAY
+from lib.model import LiturgicalDay, SUNDAY, SPECIALDAY, WEEKDAY
 
 
-
-
-class TestReadingParser(unittest.TestCase):
+class TestLiturgicalDayParser(unittest.TestCase):
     @parameterized.expand([
         ["Środa I tygodnia Wielkiego Postu", 
             SPECIALDAY, None],
@@ -20,9 +18,9 @@ class TestReadingParser(unittest.TestCase):
         ["Wtorek II tygodnia Adwentu",
             SPECIALDAY, None]
     ])
-    def test_reading_parser(self, name, day_type, year):
-        expected = Reading(full_name=name, day_type=day_type, year=year)
-        self.assertEqual(Reading.parse(name), expected)
+    def test_liturgical_day_parser(self, name, day_type, year):
+        expected = LiturgicalDay(full_name=name, day_type=day_type, year=year)
+        self.assertEqual(LiturgicalDay.parse(name), expected)
 
 
 if __name__ == "__main__":
