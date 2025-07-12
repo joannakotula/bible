@@ -35,12 +35,19 @@ class Fragment(object):
         def get_verses(rest: str) -> list[tuple]:
             found_groups=re.findall("(\d\w*)(-(\d\w*))?",rest)
             return [(g[0], g[2] if g[2] else g[0]) for g in found_groups]
+        def get_chapter_fragments(book: str, one_chapter_content: str):
+            match_chapter=re.match("(\d+)[^,]*, ([^\(]*)", one_chapter_content)
+            return Fragment.create(book, int(match_chapter.group(1)), get_verses(match_chapter.group(2)))
 
         verses_str = verses_str.strip()
-        match_book_chapter=re.search("([\d]? ?\w+) (\d+)[^,]*, ([^\(]*)", verses_str)
+        match_book_chapter=re.match("([\d]? ?\w+) (\d+.*)", verses_str)
         if not match_book_chapter:
             raise ValueError(f"Unable to determine book/chapter from '{verses_str}'")
-        return Fragment.create(match_book_chapter.group(1), int(match_book_chapter.group(2)), get_verses(match_book_chapter.group(3)))
+        book = match_book_chapter.group(1)
+        return [fragment 
+                for one_chapter_content in match_book_chapter.group(2).split(';')
+                for fragment in get_chapter_fragments(book, one_chapter_content.strip())
+                ]
 
 class LiturgicalDay(object):
     def __init__(self, full_name: str, day_type: str, year: str = None):
