@@ -13,7 +13,13 @@ class TestFragmentParser(unittest.TestCase):
         ["Mt 1, 1-25", [Fragment(book_abbr="Mt", chapter=1, first_verse='1', last_verse='25')]],
         ["Ps 25 (24), 4-5. 8-9. 10 i 14 (R.: por. Łk 21, 28)",
             Fragment.create(book_abbr="Ps", chapter=25, verses=[('4', '5'), ('8','9'), ('10', '10'), ('14', '14')])
+        ],
+        ["Rdz 2, 7-9; 3, 1-7",
+            [Fragment(book_abbr="Rdz", chapter=2, first_verse="7", last_verse="9"),
+            Fragment(book_abbr="Rdz", chapter=3, first_verse="1", last_verse="7")
             ]
+         ]
+
     ])
     def test_reading_parser(self, verses_str: str, expected: list):
         self.assertEqual(Fragment.parse(verses_str), expected)
