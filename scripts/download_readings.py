@@ -68,10 +68,10 @@ def get_readings_from_period(link: PeriodLink, parents_periods=[]) -> list[Readi
 
 def get_key_from_title(title: str):
     key_map = {
-        "pierwsze czytanie": "pierwsze",
-        "drugie czytanie": "drugie",
+        "pierwsze czytanie": "first",
+        "drugie czytanie": "second",
         "psalm": "psalm",
-        "ewangelia": "ewangelia"
+        "ewangelia": "gospel"
     }
     for k, key in key_map.items():
         if title.lower().startswith(k):
