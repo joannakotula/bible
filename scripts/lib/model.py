@@ -28,7 +28,11 @@ class Fragment(object):
     
     @staticmethod
     def create(book_abbr: str, chapter: int, verses: list[tuple]) -> list:
-        return [Fragment(book_abbr=book_abbr, chapter=chapter, first_verse=t[0], last_verse=t[1]) for t in verses]
+        return [Fragment(book_abbr=book_abbr, 
+                         chapter=chapter, 
+                         first_verse=str(t[0]), 
+                         last_verse=str(t[1]) if len(t) > 1 else str(t[0])) 
+                    for t in verses]
 
     @staticmethod
     def parse(verses_str: str) -> list:
@@ -82,8 +86,25 @@ class LiturgicalDay(object):
 
         return LiturgicalDay(full_name=name, day_type=get_date_type(year), year=year)
 
+class Reading(object):
+    def __init__(self, data: dict) -> None:
+        self.day = LiturgicalDay.parse(data["name"])
+        self.fragments = {k: Fragment.parse(v) for k, v in data['readings'].items()}
+        self.periods = data['periods']
 
+    def __eq__(self, other):
+        if not isinstance(other, Reading):
+            return NotImplemented
+        return (
+            self.day == other.day and
+            self.fragments == other.fragments and
+            self.periods == other.periods
+        )
 
+    def __repr__(self):
+        return (f"Reading(day={self.day!r}, "
+                f"fragments={self.fragments!r}, "
+                f"periods={self.periods!r})")
 
 class Verse(object):
 
