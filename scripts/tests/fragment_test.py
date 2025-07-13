@@ -21,7 +21,7 @@ class TestFragmentParser(unittest.TestCase):
          ]
 
     ])
-    def test_reading_parser(self, verses_str: str, expected: list):
+    def test_fragment_parser(self, verses_str: str, expected: list):
         self.assertEqual(Fragment.parse(verses_str), expected)
 
 
