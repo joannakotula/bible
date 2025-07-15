@@ -23,7 +23,7 @@ def prepare_book(book_data: dict):
     book = Book(name=book_data['name'], abbr=book_data['abbr'])
     chapters_data = bible_api.get_chapters_with_verses(book.abbr)
     for chapter_no, verses in chapters_data.items():
-        book.add_chapter(chapter_no=chapter_no, verses=verses)
+        book.add_chapter(chapter_no=chapter_no, verses_ids=verses)
     print(yaml.dump(book.to_dict(), sort_keys=False))
     return book
 
@@ -33,4 +33,4 @@ def prepare_books_list(testament: str):
 data = { name: books_to_dict(prepare_books_list(name)) for name in ["Old Testament", "New Testament"]}
 
 with open("data/skeleton.yml", "w") as f:
-    f.write(yaml.dump(data, sort_keys=False))
+    f.write(yaml.dump(data, sort_keys=False, allow_unicode=True))
