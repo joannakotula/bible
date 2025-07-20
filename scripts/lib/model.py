@@ -8,6 +8,28 @@ WEEKDAY = 'weekday'
 SUNDAY_YEARS = ['A','B','C']
 WEEKDAY_YEARS = ['I', 'II']
 
+class ReadStats(object):
+    def __init__(self, verses_count: int = 0, data = {}) -> None:
+        self.data = data
+        self.verses_count = verses_count
+
+    def to_dict(self):
+        if self.is_empty():
+            return {}
+        else:
+            return {
+                'verses_count': self.verses_count,
+                'stats': self.data
+            }
+
+    def is_empty(self):
+        return self.verses_count == 0
+
+    @staticmethod
+    def from_dict(data: dict):
+        return ReadStats(data['verses_count'], data['stats'])
+    
+
 class Fragment(object):
 
     def __init__(self, book_abbr: str, chapter: int, first_verse: str, last_verse: str) -> None:
@@ -108,25 +130,30 @@ class Reading(object):
 
 class Verse(object):
 
-    def __init__(self, book_abbr: str, chapter_no: int, verse_no: str, readings: list = []) -> None:
+    def __init__(self, book_abbr: str, chapter_no: int, verse_no: str, readings: list[str] = [], stats: ReadStats = None) -> None:
         self.book_abbr = book_abbr
         self.chapter_no = chapter_no
         self.verse_no = verse_no
         self.readings = readings
+        if stats is not None:
+            self.stats = stats
+        else:
+            self.stats = ReadStats(verses_count=1)
 
     def to_dict(self):
         if self.readings:
             return {
-                "readings": self.readings
-            }
+                "readings": self.readings,
+            } | self.stats.to_dict()
         else:
             return {}
         
 
 class Chapter(object):
-    def __init__(self, book_abbr: str, chapter_no: int, verses_ids: list = [], verses: dict = {}) -> None:
+    def __init__(self, book_abbr: str, chapter_no: int, verses_ids: list = [], verses: dict = {}, stats: ReadStats = ReadStats()) -> None:
         self.book_abbr = book_abbr
         self.chapter_no = chapter_no
+        self.stats = stats
         if verses:
             self.verses = verses
         else:
@@ -134,27 +161,33 @@ class Chapter(object):
 
     def to_dict(self):
         return {
-            "verses": {no: v.to_dict() for no, v in self.verses.items()}
-        }
+            "verses": {no: v.to_dict() for no, v in self.verses.items()},
+        } | self.stats.to_dict()
+    
     
     @staticmethod
     def fromDict(book_abbr: str, chapter_no: int, data: dict):
+        stats = ReadStats(data.get("verses_count", 0), data=data.get("stats", {}))
         return Chapter(book_abbr=book_abbr, 
                        chapter_no=chapter_no, 
                        verses={ no: Verse(
                            book_abbr=book_abbr, 
                            chapter_no=chapter_no,
                            verse_no=no,
-                           readings=verse_data['readings'] if verse_data and 'readings' in verse_data else [])
-                        for no, verse_data in data['verses'].items()})
+                           readings=verse_data['readings'] if verse_data and 'readings' in verse_data else [],
+                           stats=ReadStats.from_dict(verse_data) if verse_data and 'stats' in verse_data else None
+                          )
+                        for no, verse_data in data['verses'].items()},
+                        stats=stats)
     
 
 
 class Book(object):
-    def __init__(self, name: str, abbr: str, chapters = []) -> None:
+    def __init__(self, name: str, abbr: str, chapters = {}, stats: ReadStats = ReadStats()) -> None:
         self.name = name
         self.abbr = abbr
         self.chapters = chapters
+        self.stats = stats
 
     def add_chapter(self, chapter_no: int, verses_ids: list):
         self.chapters.append(Chapter(book_abbr=self.abbr, chapter_no=chapter_no, verses_ids=verses_ids))
@@ -162,12 +195,15 @@ class Book(object):
     def to_dict(self):
         return {
             "full_name": self.name,
-            "chapters": {ch.chapter_no: ch.to_dict() for ch in self.chapters}
-        }
+            "chapters": {ch_no: ch.to_dict() for ch_no, ch in self.chapters.items()}
+        } | self.stats.to_dict()
+    
+
 
     @staticmethod
     def fromDict(abbr: str, data: dict):
+        stats = ReadStats(data.get("verses_count", 0), data=data.get("stats", {}))
         return Book(data['full_name'], abbr, 
-                    [Chapter.fromDict(abbr, chapter_no, chapter_data) 
+                    {chapter_no: Chapter.fromDict(abbr, chapter_no, chapter_data) 
                      for chapter_no, chapter_data in data['chapters'].items()
-                     ])
+                     }, stats=stats)
