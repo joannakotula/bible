@@ -1,5 +1,6 @@
-from enum import Enum
 import re
+import functools
+import operator
 
 SUNDAY = 'sunday'
 SPECIALDAY = 'special'
@@ -19,9 +20,32 @@ def contains_any(haystack: str, needles: list[str]):
     return any(v in haystack for v in needles)
 
 class ReadStats(object):
-    def __init__(self, verses_count: int = 0, data = {}) -> None:
-        self.data = data
+    def __init__(self, verses_count: int = 0, data = None) -> None:
+        self.data: dict[str, int] = data if data else {}
         self.verses_count = verses_count
+
+    def get_percent(self, key: str):
+        return self.data[key]/self.verses_count * 100
+
+    def contains(self, key: str) -> bool:
+        return (key in self.data and self.data[key] > 0)
+    
+    def filter_out_existing(self, keys: list[str]) -> list[str]:
+        return [key for key in keys if not self.contains(key)]
+    
+    def increment(self, key):
+        if not key in self.data:
+            self.data[key] = 1
+        else:
+            self.data[key]+=1
+    
+    def add(self, other):
+       self.verses_count += other.verses_count
+       for key, value in other.data.items():
+            if key in self.data:
+               self.data[key] += value
+            else:
+                self.data[key] = value
 
     def to_dict(self):
         if self.is_empty():
@@ -143,7 +167,7 @@ class Reading(object):
     def __init__(self, data: dict) -> None:
         self.day = LiturgicalDay.parse(data["name"])
         self.fragments = {k: Fragment.parse(v) for k, v in data['readings'].items()}
-        self.periods = data['periods']
+        self.periods = data.get('periods', [])
 
     def __eq__(self, other):
         if not isinstance(other, Reading):
@@ -172,53 +196,94 @@ class Verse(object):
             self.stats = ReadStats(verses_count=1)
 
     def to_dict(self):
+        base = {
+            'number': self.verse_no
+        }
         if self.readings:
-            return {
+            return base | {
                 "readings": self.readings,
             } | self.stats.to_dict()
         else:
-            return {}
+            return base
         
+    def add_reading(self, day: str, day_keys: list[str]):
+        self.readings.append(day)
+        for key in self.stats.filter_out_existing(day_keys):
+            self.stats.increment(key)
+        
+def get_clear_number(verse_number: str) -> str:
+    matcher = re.search(r"(\d+)", verse_number)
+    if not matcher:
+        raise ValueError(f"Invalid verse number: {verse_number}")
+    return matcher.group(1)
 
 class Chapter(object):
-    def __init__(self, book_abbr: str, chapter_no: int, verses_ids: list = [], verses: dict = {}, stats: ReadStats = ReadStats()) -> None:
+    def __init__(self, book_abbr: str, chapter_no: int, verses_ids: list = [], verses: list[Verse] = [], stats: ReadStats = ReadStats()) -> None:
         self.book_abbr = book_abbr
         self.chapter_no = chapter_no
         self.stats = stats
         if verses:
             self.verses = verses
         else:
-            self.verses = {id: Verse(book_abbr=book_abbr, chapter_no=chapter_no, verse_no=id) for id in verses_ids}
+            self.verses = [Verse(book_abbr=book_abbr, chapter_no=chapter_no, verse_no=id) for id in verses_ids]
+        self.verses_idxs = {v.verse_no: idx for idx, v in enumerate(self.verses) }
 
     def to_dict(self):
         return {
-            "verses": {no: v.to_dict() for no, v in self.verses.items()},
+            "verses": [v.to_dict() for v in self.verses],
         } | self.stats.to_dict()
     
+    def calculate_stats(self):
+        if not self.stats.is_empty():
+            raise ValueError("Stats already calculated")
+        for verse in self.verses:
+            self.stats.add(verse.stats)
+        return self.stats
     
+    def _get_verse_idx(self, verse_no):
+        if verse_no == LAST_VERSE:
+            return len(self.verses_idxs)
+        if verse_no == FIRST_VERSE:
+            return 0
+        if verse_no in self.verses_idxs:
+            return self.verses_idxs[verse_no]
+        cleared_no = get_clear_number(verse_no)
+        if cleared_no in self.verses_idxs:
+            return self.verses_idxs[cleared_no]
+        raise ValueError(f"Cannot find verse: {verse_no} ({cleared_no}) in {self.book_abbr} {self.chapter_no}")
+    
+    def add_fragment(self, day_name: str, day_keys: list[str], fragment: Fragment) -> None:
+        start_verse_idx = self._get_verse_idx(fragment.first_verse)
+        end_verse_idx = self._get_verse_idx(fragment.last_verse)
+        print(f"--- adding for {day_name}")
+        for i in range(start_verse_idx, end_verse_idx+1):
+            print(f"      {self.verses[i].verse_no} ({i})")
+            self.verses[i].add_reading(day_name, day_keys)
+
+
     @staticmethod
     def fromDict(book_abbr: str, chapter_no: int, data: dict):
         stats = ReadStats(data.get("verses_count", 0), data=data.get("stats", {}))
         return Chapter(book_abbr=book_abbr, 
                        chapter_no=chapter_no, 
-                       verses={ no: Verse(
+                       verses=[Verse(
                            book_abbr=book_abbr, 
                            chapter_no=chapter_no,
-                           verse_no=no,
+                           verse_no=verse_data['number'],
                            readings=verse_data['readings'] if verse_data and 'readings' in verse_data else [],
                            stats=ReadStats.from_dict(verse_data) if verse_data and 'stats' in verse_data else None
                           )
-                        for no, verse_data in data['verses'].items()},
+                        for verse_data in data['verses']],
                         stats=stats)
     
 
 
 class Book(object):
-    def __init__(self, name: str, abbr: str, chapters = {}, stats: ReadStats = ReadStats()) -> None:
+    def __init__(self, name: str, abbr: str, chapters: dict[int, Chapter] = {}, stats: ReadStats = None) -> None:
         self.name = name
         self.abbr = abbr
         self.chapters = chapters
-        self.stats = stats
+        self.stats = stats if stats else ReadStats()
 
     def add_chapter(self, chapter_no: int, verses_ids: list):
         self.chapters.append(Chapter(book_abbr=self.abbr, chapter_no=chapter_no, verses_ids=verses_ids))
@@ -229,7 +294,16 @@ class Book(object):
             "chapters": {ch_no: ch.to_dict() for ch_no, ch in self.chapters.items()}
         } | self.stats.to_dict()
     
-
+    def calculate_stats(self):
+        if not self.stats.is_empty():
+            raise ValueError("Stats already calculated")
+        for chapter in self.chapters.values():
+            self.stats.add(chapter.calculate_stats())
+        return self.stats
+    
+    def add_fragment(self, day_name: str, day_keys: list[str], fragment: Fragment) -> None:
+        print(f"----------- Adding {fragment} as {day_keys}")
+        self.chapters[fragment.chapter].add_fragment(day_name, day_keys, fragment)
 
     @staticmethod
     def fromDict(abbr: str, data: dict):
@@ -238,3 +312,22 @@ class Book(object):
                     {chapter_no: Chapter.fromDict(abbr, chapter_no, chapter_data) 
                      for chapter_no, chapter_data in data['chapters'].items()
                      }, stats=stats)
+
+def add_readings(books: dict[str, Book], readings: list[Reading]) -> ReadStats:
+    for reading in readings:
+        day = reading.day
+        keys = ['all', day.day_type]
+        if day.year:
+            keys.append(day.year)
+        all_fragments:list[Fragment] = functools.reduce(operator.iconcat, reading.fragments.values(), [])
+        for fragment in all_fragments:
+            book = books[fragment.book_abbr]
+            book.add_fragment(
+                day_name=day.full_name,
+                day_keys=keys,
+                fragment=fragment
+            )
+    summary = ReadStats()
+    for book in books.values():
+        summary.add(book.calculate_stats())
+    return summary
