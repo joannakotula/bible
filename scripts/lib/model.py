@@ -8,8 +8,15 @@ WEEKDAY = 'weekday'
 SUNDAY_YEARS = ['A','B','C']
 WEEKDAY_YEARS = ['I', 'II']
 
+WEEKDAY_DAYS = ["poniedziałek", "wtorek", "środa", "czwartek", "piątek", "sobota"]
+WEEKDAY_DAYS_EXCEPTIONS = ['wielki poniedziałek', 'wielki wtorek', 'wielka środa', 'wielki czwartek', 'wielki piątek', 'wielka sobota', 'poniedziałek wielkanocny']
+
+
 FIRST_VERSE = "__FIRST__"
 LAST_VERSE = "__LAST__"
+
+def contains_any(haystack: str, needles: list[str]):
+    return any(v in haystack for v in needles)
 
 class ReadStats(object):
     def __init__(self, verses_count: int = 0, data = {}) -> None:
@@ -113,6 +120,7 @@ class LiturgicalDay(object):
     @staticmethod
     def parse(name: str):
         name = name.strip()
+        lower_name = name.lower()
 
         # Szukamy roku liturgicznego: rok A, B, C, I, II
         match_year = re.search(r'rok\s+(A|B|C|II|I)', name, re.IGNORECASE)
@@ -122,6 +130,9 @@ class LiturgicalDay(object):
             if year in SUNDAY_YEARS:
                 return SUNDAY
             elif year in WEEKDAY_YEARS:
+                return WEEKDAY
+            elif contains_any(lower_name, WEEKDAY_DAYS) \
+                and not contains_any(lower_name, WEEKDAY_DAYS_EXCEPTIONS):
                 return WEEKDAY
             else:
                 return SPECIALDAY
