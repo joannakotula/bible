@@ -1,6 +1,6 @@
 import unittest
 from parameterized import parameterized
-from lib.model import Fragment
+from lib.model import Fragment, FIRST_VERSE, LAST_VERSE
 
 class TestFragmentParser(unittest.TestCase):
     @parameterized.expand([
@@ -18,6 +18,19 @@ class TestFragmentParser(unittest.TestCase):
             [Fragment(book_abbr="Rdz", chapter=2, first_verse="7", last_verse="9"),
             Fragment(book_abbr="Rdz", chapter=3, first_verse="1", last_verse="7")
             ]
+         ],
+         ["Rdz 1, 20 – 2, 4a",
+             [
+                Fragment(book_abbr="Rdz", chapter=1, first_verse='20', last_verse=LAST_VERSE),
+                Fragment(book_abbr="Rdz", chapter=2, first_verse=FIRST_VERSE, last_verse="4a")
+              ]
+         ],
+         ["Rdz 1, 20 - 2, 4a; 3, 1",
+             [
+                Fragment(book_abbr="Rdz", chapter=1, first_verse='20', last_verse=LAST_VERSE),
+                Fragment(book_abbr="Rdz", chapter=2, first_verse=FIRST_VERSE, last_verse="4a"),
+                Fragment(book_abbr="Rdz", chapter=3, first_verse=1, last_verse=1)
+              ]
          ]
 
     ])

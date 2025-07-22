@@ -8,6 +8,9 @@ WEEKDAY = 'weekday'
 SUNDAY_YEARS = ['A','B','C']
 WEEKDAY_YEARS = ['I', 'II']
 
+FIRST_VERSE = "__FIRST__"
+LAST_VERSE = "__LAST__"
+
 class ReadStats(object):
     def __init__(self, verses_count: int = 0, data = {}) -> None:
         self.data = data
@@ -35,8 +38,8 @@ class Fragment(object):
     def __init__(self, book_abbr: str, chapter: int, first_verse: str, last_verse: str) -> None:
         self.book_abbr = book_abbr
         self.chapter = chapter
-        self.first_verse = first_verse
-        self.last_verse = last_verse
+        self.first_verse = str(first_verse)
+        self.last_verse = str(last_verse)
 
     def __eq__(self, other: object) -> bool:
         return (self.book_abbr == other.book_abbr 
@@ -65,14 +68,31 @@ class Fragment(object):
             match_chapter=re.match("(\d+)[^,]*, ([^\(]*)", one_chapter_content)
             return Fragment.create(book, int(match_chapter.group(1)), get_verses(match_chapter.group(2)))
 
-        verses_str = verses_str.strip()
+        # clear and normalize
+        verses_str = re.sub(r'\([^)]*\)', '', verses_str).strip()
+        verses_str = verses_str.replace("–", "-") 
+
         match_book_chapter=re.match("([\d]? ?\w+) (\d+.*)", verses_str)
         if not match_book_chapter:
             raise ValueError(f"Unable to determine book/chapter from '{verses_str}'")
-        book = match_book_chapter.group(1)
+        
+        book, rest = match_book_chapter.groups()
+        if ';' in rest:
+            result = []
+            for part in rest.split(';'):
+                result += Fragment.parse(f"{book} {part.strip()}")
+            return result
+        
+        cross_chapter_match = re.match(r"(\d+),\s*(\w+) *- *(\d+),\s*(\w+)", rest.strip())
+        if cross_chapter_match:
+            chapter1, verse1, chapter2, verse2 = cross_chapter_match.groups()
+            return [
+                Fragment(book, int(chapter1), verse1, LAST_VERSE),
+                Fragment(book, int(chapter2), FIRST_VERSE, verse2)
+            ]
+        
         return [fragment 
-                for one_chapter_content in match_book_chapter.group(2).split(';')
-                for fragment in get_chapter_fragments(book, one_chapter_content.strip())
+                for fragment in get_chapter_fragments(book, rest.strip())
                 ]
 
 class LiturgicalDay(object):
