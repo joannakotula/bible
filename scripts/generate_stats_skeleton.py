@@ -2,9 +2,7 @@ import yaml
 from lib.model import Book
 from lib.bible_deon_api import BibleDeonApi
 from lib.utils import read_yaml_file
-
-BOOKS_FILE = "data/books.yml"
-
+from lib.data_files import BOOKS_FILE, SKELETON_FILE
 
 def books_to_dict(books: list[Book]) -> dict[dict]:
     return {book.abbr: book.to_dict() for book in books}
@@ -28,5 +26,5 @@ def prepare_books_list(testament: str):
 
 data = { name: books_to_dict(prepare_books_list(name)) for name in ["Old Testament", "New Testament"]}
 
-with open("data/skeleton.yml", "w") as f:
+with open(SKELETON_FILE, "w") as f:
     f.write(yaml.dump(data, sort_keys=False, allow_unicode=True))

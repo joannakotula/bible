@@ -3,6 +3,7 @@ from bs4 import BeautifulSoup
 import yaml
 import time
 from dataclasses import dataclass
+from lib.data_files import READINGS_FILE
 
 ############################################################
 ## There are some known issues:
@@ -17,8 +18,6 @@ NAWIGATOR_URL = f"{BASE_URL}/Czytania_mszalne/Nawigator/"
 READINGS_PATH=f"/doc/"
 VERSE_CLASS = "bible-verse"
 TITLE_CLASS = "block-title"
-
-OUTPUT_FILE="data/readings.yaml"
 
 visited_urls = []
 
@@ -134,4 +133,4 @@ if __name__ == "__main__":
     # print(yaml.dump(ret))
     readings = collect_all_readings()
     save_to_yaml(readings)
-    print(f"✅ Gotowe! Dane zapisane do {OUTPUT_FILE}")
+    print(f"✅ Gotowe! Dane zapisane do {READINGS_FILE}")
