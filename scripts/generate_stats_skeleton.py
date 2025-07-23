@@ -1,15 +1,11 @@
 import yaml
 from lib.model import Book
 from lib.bible_deon_api import BibleDeonApi
+from lib.utils import read_yaml_file
 
 BOOKS_FILE = "data/books.yml"
 
 
-
-def read_yaml_file(filename: str):
-    with open(filename, 'r') as file:
-        return yaml.safe_load(file.read())
-    
 def books_to_dict(books: list[Book]) -> dict[dict]:
     return {book.abbr: book.to_dict() for book in books}
 
