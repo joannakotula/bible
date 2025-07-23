@@ -286,7 +286,7 @@ class Book(object):
         self.stats = stats if stats else ReadStats()
 
     def add_chapter(self, chapter_no: int, verses_ids: list):
-        self.chapters.append(Chapter(book_abbr=self.abbr, chapter_no=chapter_no, verses_ids=verses_ids))
+        self.chapters[chapter_no] = Chapter(book_abbr=self.abbr, chapter_no=chapter_no, verses_ids=verses_ids)
     
     def to_dict(self):
         return {
