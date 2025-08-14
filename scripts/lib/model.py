@@ -16,6 +16,9 @@ WEEKDAY_DAYS_EXCEPTIONS = ['wielki poniedziałek', 'wielki wtorek', 'wielka śro
 FIRST_VERSE = "__FIRST__"
 LAST_VERSE = "__LAST__"
 
+BOOK_CHAPTER_PATTERN = "([\d]? ?\w+) (\d+.*)"
+
+
 def contains_any(haystack: str, needles: list[str]):
     return any(v in haystack for v in needles)
 
@@ -96,14 +99,16 @@ class Fragment(object):
             found_groups=re.findall("(\d\w*)(-(\d\w*))?",rest)
             return [(g[0], g[2] if g[2] else g[0]) for g in found_groups]
         def get_chapter_fragments(book: str, one_chapter_content: str):
-            match_chapter=re.match("(\d+)[^,]*, ([^\(]*)", one_chapter_content)
-            return Fragment.create(book, int(match_chapter.group(1)), get_verses(match_chapter.group(2)))
+            match_chapter=re.match("(\d+)[^,]*, ?([^\(]*)", one_chapter_content)
+            if match_chapter:
+                return Fragment.create(book, int(match_chapter.group(1)), get_verses(match_chapter.group(2)))
+            raise ValueError(f"Unable to parse {verses_str}: '{one_chapter_content}' doesn't match chapter regex")
 
         # clear and normalize
         verses_str = re.sub(r'\([^)]*\)', '', verses_str).strip()
         verses_str = verses_str.replace("–", "-") 
 
-        match_book_chapter=re.match("([\d]? ?\w+) (\d+.*)", verses_str)
+        match_book_chapter=re.match(BOOK_CHAPTER_PATTERN, verses_str)
         if not match_book_chapter:
             raise ValueError(f"Unable to determine book/chapter from '{verses_str}'")
         
@@ -111,7 +116,10 @@ class Fragment(object):
         if ';' in rest:
             result = []
             for part in rest.split(';'):
-                result += Fragment.parse(f"{book} {part.strip()}")
+                next_part=part.strip()
+                if not re.match(BOOK_CHAPTER_PATTERN, next_part):
+                    next_part=f"{book} {next_part}"
+                result += Fragment.parse(next_part)
             return result
         
         cross_chapter_match = re.match(r"(\d+),\s*(\w+) *- *(\d+),\s*(\w+)", rest.strip())

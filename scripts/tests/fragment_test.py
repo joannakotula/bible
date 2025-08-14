@@ -31,6 +31,13 @@ class TestFragmentParser(unittest.TestCase):
                 Fragment(book_abbr="Rdz", chapter=2, first_verse=FIRST_VERSE, last_verse="4a"),
                 Fragment(book_abbr="Rdz", chapter=3, first_verse=1, last_verse=1)
               ]
+         ],
+         ["Ps 42 (41), 2-3; Ps 43 (42), 3. 4 (R.: por. Ps 42 [41], 3cd)",
+             [
+                 Fragment(book_abbr="Ps", chapter=42, first_verse='2', last_verse='3'),
+                 Fragment(book_abbr="Ps", chapter=43, first_verse='3', last_verse='3'),
+                 Fragment(book_abbr="Ps", chapter=43, first_verse='4', last_verse='4')
+             ]
          ]
 
     ])
