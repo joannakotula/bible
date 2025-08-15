@@ -2,6 +2,8 @@ import requests
 from bs4 import BeautifulSoup
 import yaml
 import time
+import re
+import sys
 from dataclasses import dataclass
 from lib.data_files import READINGS_FILE
 
@@ -18,6 +20,26 @@ NAWIGATOR_URL = f"{BASE_URL}/Czytania_mszalne/Nawigator/"
 READINGS_PATH=f"/doc/"
 VERSE_CLASS = "bible-verse"
 TITLE_CLASS = "block-title"
+SHORTER_PREFIX = "KRÓTSZ"
+LONGER_PREFIX = "DŁUŻSZ"
+
+
+READING_KEYS_MAP = {
+    "pierwsze czytanie": "first",
+    "drugie czytanie": "second",
+    "psalm responsoryjny": "psalm",
+    "ewangelia": "gospel"
+}
+
+# Data for pages that cannot be parsed correctly 
+# as they lack e.g. proper tag on verses
+# PRESET_PARSE_DATA = {
+#     "https://liturgia.wiara.pl/doc/410527.30-grudnia-szosty-dzien-w-Oktawie-Narodzenia-Panskiego": {
+#         'first': '1 J 2, 12-17',
+#         'psalm': 'Ps 96 (95), 7-8. 9-10 (R.: por. 11a)',
+#         'gospel': 'Łk 2, 36-40'
+#     }
+# }
 
 visited_urls = []
 
@@ -66,39 +88,81 @@ def get_readings_from_period(link: PeriodLink, parents_periods=[]) -> list[Readi
     return readings
 
 def get_key_from_title(title: str):
-    key_map = {
-        "pierwsze czytanie": "first",
-        "drugie czytanie": "second",
-        "psalm": "psalm",
-        "ewangelia": "gospel"
-    }
-    for k, key in key_map.items():
+    for k, key in READING_KEYS_MAP.items():
         if title.lower().startswith(k):
             return key
     return None
 
+def get_matching_key_name(text: str):
+    normalized_text = text.lower()
+    names = [name for name in READING_KEYS_MAP.keys() if normalized_text.startswith(name)]
+    if names:
+        return names[0]
+    return None
+
+def remove_key_name(text: str, key_name: str):
+    return text[len(key_name):].strip()
+
+def is_valid_fragment(text: str, debug_info: str):
+    match_book_chapter=re.match("([\d]? ?\w+) (\d+.*)", text)
+    if match_book_chapter:
+        return True
+    print(f"Verse: '{text}' doesn't look like Bible verse (for {debug_info})", file=sys.stderr)
+    return False
+
+    
+
 def parse_readings(url):
+    def parse_when_proper_classes():
+        readings = {}
+        paragraphs = content.select(f"p.{TITLE_CLASS}, p.{VERSE_CLASS}")
+        current_key = None
+
+        for p in paragraphs:
+            text = p.get_text(strip=True)
+            if not text:
+                continue
+
+            paragraph_class = p['class']
+            if TITLE_CLASS in paragraph_class:
+                current_key = get_key_from_title(text)
+            elif current_key and VERSE_CLASS in paragraph_class:
+                match_book_chapter=re.match("([\d]? ?\w+) (\d+.*)", text)
+                if match_book_chapter:
+                    readings[current_key] = text
+                else:
+                    print(f"Verse: '{text}' doesn't look like Bible verse (for {url})", file=sys.stderr)
+        return readings
+    
+    def parse_when_no_classes():
+        readings = {}
+        all_paragraphs = content.select("p")
+        for p in all_paragraphs:
+            text = p.get_text(strip=True)
+            if not text:
+                continue
+            matching_name = get_matching_key_name(text)
+            if matching_name:
+                key = READING_KEYS_MAP[matching_name]
+                fragment = text[len(matching_name):].strip()
+                if fragment.startswith(LONGER_PREFIX):
+                    fragment = fragment[len(LONGER_PREFIX)+1:].strip
+                if not fragment.startswith(SHORTER_PREFIX):
+                    readings[key] = fragment
+        return readings
+
     res = requests.get(url)
     soup = BeautifulSoup(res.text, "html.parser")
     content = soup.select_one("div.txt__content")
     if not content:
         return {}
     
-    paragraphs = content.select(f"p.{TITLE_CLASS}, p.{VERSE_CLASS}")
-    readings = {}
-    current_key = None
+    readings = parse_when_proper_classes()
+    if not readings:
+        readings = parse_when_no_classes()
 
-    for p in paragraphs:
-        text = p.get_text(strip=True)
-        if not text:
-            continue
-
-        paragraph_class = p['class']
-        if TITLE_CLASS in paragraph_class:
-            current_key = get_key_from_title(text)
-        elif current_key and VERSE_CLASS in paragraph_class:
-            readings[current_key] = text
-
+    if not readings:
+        print(f"Still no readings for {url}", file=sys.stderr)
     return readings
 
 def collect_all_readings():
@@ -114,6 +178,7 @@ def collect_all_readings():
                 content = parse_readings(reading.url)
                 all_readings.append({
                     "name": reading.name,
+                    "url": reading.url,
                     "readings": content,
                     "periods": reading.periods
                 })
@@ -124,13 +189,13 @@ def collect_all_readings():
 
     return all_readings
 
-def save_to_yaml(data, filename=OUTPUT_FILE):
+def save_to_yaml(data, filename=READINGS_FILE):
     with open(filename, "w", encoding="utf-8") as f:
         yaml.dump(data, f, allow_unicode=True)
 
 if __name__ == "__main__":
-    # ret = parse_readings("https://liturgia.wiara.pl/doc/413312.I-Niedziela-Adwentu-rok-A")
-    # print(yaml.dump(ret))
+    # ret = parse_readings("https://liturgia.wiara.pl/doc/410527.30-grudnia-szosty-dzien-w-Oktawie-Narodzenia-Panskiego")
+    # print(yaml.dump(ret, allow_unicode=True))
     readings = collect_all_readings()
     save_to_yaml(readings)
     print(f"✅ Gotowe! Dane zapisane do {READINGS_FILE}")
