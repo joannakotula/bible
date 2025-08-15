@@ -174,7 +174,7 @@ class LiturgicalDay(object):
 class Reading(object):
     def __init__(self, data: dict) -> None:
         self.day = LiturgicalDay.parse(data["name"])
-        self.fragments = {k: Fragment.parse(v) for k, v in data['readings'].items()}
+        self.fragments:dict[str,list[Fragment]] = {k: Fragment.parse(v) for k, v in data['readings'].items()}
         self.periods = data.get('periods', [])
 
     def __eq__(self, other):
