@@ -17,6 +17,7 @@ FIRST_VERSE = "__FIRST__"
 LAST_VERSE = "__LAST__"
 
 BOOK_CHAPTER_PATTERN = "([\d]? ?\w+) (\d+.*)"
+ONE_CHAPTER_BOOKS = ['Flm', '2 J', '3 J', 'Jud']
 
 
 def contains_any(haystack: str, needles: list[str]):
@@ -98,11 +99,17 @@ class Fragment(object):
         def get_verses(rest: str) -> list[tuple]:
             found_groups=re.findall("(\d\w*)(-(\d\w*))?",rest)
             return [(g[0], g[2] if g[2] else g[0]) for g in found_groups]
-        def get_chapter_fragments(book: str, one_chapter_content: str):
+        def extract_chapter_from_rest(book: str, one_chapter_content: str) -> tuple[int, str]:
             match_chapter=re.match("(\d+)[^,\.]*[,\.] ?([^\(]*)", one_chapter_content)
             if match_chapter:
-                return Fragment.create(book, int(match_chapter.group(1)), get_verses(match_chapter.group(2)))
+                return (int(match_chapter.group(1)), match_chapter.group(2))
+            if book in ONE_CHAPTER_BOOKS:
+                return (1, one_chapter_content)
             raise ValueError(f"Unable to parse {verses_str}: '{one_chapter_content}' doesn't match chapter regex")
+
+        def get_chapter_fragments(book: str, one_chapter_content: str):
+            chapter, rest = extract_chapter_from_rest(book, one_chapter_content)
+            return Fragment.create(book, chapter, get_verses(rest))
 
         # clear and normalize
         verses_str = re.sub(r'\([^)]*\)', '', verses_str).strip()
