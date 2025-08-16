@@ -99,7 +99,7 @@ class Fragment(object):
             found_groups=re.findall("(\d\w*)(-(\d\w*))?",rest)
             return [(g[0], g[2] if g[2] else g[0]) for g in found_groups]
         def get_chapter_fragments(book: str, one_chapter_content: str):
-            match_chapter=re.match("(\d+)[^,]*, ?([^\(]*)", one_chapter_content)
+            match_chapter=re.match("(\d+)[^,\.]*[,\.] ?([^\(]*)", one_chapter_content)
             if match_chapter:
                 return Fragment.create(book, int(match_chapter.group(1)), get_verses(match_chapter.group(2)))
             raise ValueError(f"Unable to parse {verses_str}: '{one_chapter_content}' doesn't match chapter regex")
