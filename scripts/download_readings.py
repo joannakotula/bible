@@ -4,6 +4,7 @@ import yaml
 import time
 import re
 import sys
+import traceback
 from dataclasses import dataclass
 from lib.data_files import READINGS_FILE
 
@@ -184,8 +185,8 @@ def collect_all_readings():
                 })
                 time.sleep(0.5)  # unikanie przeciążenia serwera
             except Exception as e:
-                print(f"❌ Błąd przy {reading.name}: {e}")
-                continue
+                print(f"❌ Błąd przy {reading.name}: {traceback.format_exc()}", file=sys.stderr)
+                exit(1)
 
     return all_readings
 
