@@ -44,6 +44,11 @@ class TestFragmentParser(unittest.TestCase):
                 Fragment(book_abbr="Jud", chapter=17, first_verse="20b", last_verse="25")
             ]
              
+         ],
+         ["Flm 7-20",
+             [
+                 Fragment(book_abbr="Flm", chapter=1, first_verse='7', last_verse='20')
+             ]
          ]
 
     ])
