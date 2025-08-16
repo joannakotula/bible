@@ -226,7 +226,7 @@ def get_clear_number(verse_number: str) -> str:
     return matcher.group(1)
 
 class Chapter(object):
-    def __init__(self, book_abbr: str, chapter_no: int, verses_ids: list = [], verses: list[Verse] = [], stats: ReadStats = None) -> None:
+    def __init__(self, book_abbr: str, chapter_no: int, verses_ids: list = [], verses: list[Verse] = None, stats: ReadStats = None) -> None:
         self.book_abbr = book_abbr
         self.chapter_no = chapter_no
         self.stats = stats
@@ -235,7 +235,7 @@ class Chapter(object):
         else:
             self.verses = [Verse(book_abbr=book_abbr, chapter_no=chapter_no, verse_no=id) for id in verses_ids]
         self.verses_idxs = {v.verse_no: idx for idx, v in enumerate(self.verses) }
-        stats = stats if stats else ReadStats()
+        self.stats = stats if stats else ReadStats()
 
     def to_dict(self):
         return {
@@ -288,10 +288,10 @@ class Chapter(object):
 
 
 class Book(object):
-    def __init__(self, name: str, abbr: str, chapters: dict[int, Chapter] = {}, stats: ReadStats = None) -> None:
+    def __init__(self, name: str, abbr: str, chapters: dict[int, Chapter] = None, stats: ReadStats = None) -> None:
         self.name = name
         self.abbr = abbr
-        self.chapters = chapters
+        self.chapters = chapters if chapters else {}
         self.stats = stats if stats else ReadStats()
 
     def add_chapter(self, chapter_no: int, verses_ids: list):
