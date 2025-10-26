@@ -20,7 +20,6 @@ Uwaga:
 from dataclasses import dataclass, asdict
 import sys
 import re
-import json
 from typing import List, Optional
 import requests
 from bs4 import BeautifulSoup, Tag, NavigableString
@@ -28,22 +27,50 @@ from urllib.parse import urlparse, parse_qs
 
 EXPORT_HTML_TEMPLATE = "https://docs.google.com/document/d/{doc_id}/export?format=html"
 
-@dataclass
-class Quote:
-    text: str
-    source: str
+TYPE_ARTICLE="artykuł"
+TYPE_MOVIE="film"
+# other types: playlista kanał książka podcast
+
 
 @dataclass
 class Source:
     title: str
-    url: Optional[str]
-    description: Optional[str]
-    quotes: List[Quote]
+    url: str
+    description: str
+    type: str
+
+
+    def to_wikicode(self):
+        return f"""{{{{Source
+|typ={self.type}
+|url={self.url}
+|nazwa={self.title}
+|opis={self.description}
+}}}}"""        
+
+@dataclass
+class Quote:
+    text: str
+    source: Source
+
+    def to_wikicode(self):
+        return f"""{{{{Cytat
+  |tekst={self.text}
+  |link={self.source.url}
+  |zrodlo={self.source.title}
+}}}}
+"""        
+
 
 @dataclass
 class BibleVerse:
     verse: str
     content: str
+
+    def to_wikicode(self):
+        return f"""
+TODO
+        """
 
 def extract_doc_id(url: str) -> Optional[str]:
     m = re.search(r"/d/([a-zA-Z0-9-_]+)", url)
@@ -69,7 +96,7 @@ def fetch_doc_html(link: str) -> str:
 
 def text_lines_from_nodes(nodes):
     """
-    Z listy Tag/NavigableString zwraca listę linii tekstowych (bez pustych),
+    Z listy Tag/NavigableString zwraca listę linii tekstowych,
     zachowując kolejność.
     """
     lines = []
@@ -105,6 +132,10 @@ def text_lines_from_nodes(nodes):
                 lines.append("")
     return lines
 
+
+def lines_to_text(lines: list[str]) -> str:
+    return ' '.join(l for l in (lines or [])).strip() or None
+
 def find_h1_by_title(soup: BeautifulSoup, title: str):
     title_norm = title.strip().lower()
     # znajdź element h1 (lub element o podobnym nagłówku) z pasującym tekstem
@@ -117,6 +148,9 @@ def find_h1_by_title(soup: BeautifulSoup, title: str):
             return tag
     return None
 
+def is_header_of_type(node, header_name : str) -> bool:
+    return isinstance(node, Tag) and re.match(r'^h[1-6]$', node.name, re.I) and node.name.lower() == header_name
+
 def collect_until_next_h1(start_tag: Tag):
     """
     Zbieramy kolejne rodzeństwo (siblings) od start_tag.next_sibling aż do kolejnego h1
@@ -124,12 +158,9 @@ def collect_until_next_h1(start_tag: Tag):
     """
     nodes = []
     for sib in start_tag.next_siblings:
-        if isinstance(sib, Tag) and re.match(r'^h[1-6]$', sib.name, re.I):
-            # zatrzymaj przy następnym nagłówku poziomu 1 (lub dowolnym h?), ale preferujemy h1
-            # stopujemy na każdym h1; jeśli to niższy nagłówek, też bierzemy pod uwagę (ale nie przerywamy)
-            if sib.name.lower() == 'h1':
-                return nodes
-            # inaczej dołączamy (np. h2 wewnątrz sekcji Źródła)
+        if is_header_of_type(sib, 'h1'):
+            return nodes
+        # inaczej dołączamy (np. h2 wewnątrz sekcji Źródła)
         nodes.append(sib)
     return nodes
 
@@ -144,70 +175,66 @@ def parse_sources_section(nodes) -> List[Source]:
       - każdy <h2> (albo nagłówek poziomu 2) oznacza nowy Source (tytuł)
       - następne linie to: URL (heurystycznie rozpoznany), opis (do '--'), potem cytaty oddzielone '--'
     """
-    sources = []
-    # znajdź wszystkie h2 w nodes (kolejność)
-    # jeśli nie ma h2, spróbuj interpretować cały blok jako pojedyncze źródło
-    h2s = [n for n in nodes if isinstance(n, Tag) and re.match(r'^h[2]$', n.name, re.I)]
-    if not h2s:
-        # fallback: spróbkuj podzielić bloczki paragrafów jako kolejne źródła — ale prostsze: zwróć pustą listę
-        return sources
+    next_node_idx = 0
+    nodes_size = len(nodes)
+    def peek():
+        return nodes[next_node_idx]
+    
+    def has_next() -> bool:
+        return next_node_idx < nodes_size
+    
+    def next():
+        nonlocal next_node_idx
+        idx = next_node_idx
+        next_node_idx += 1
+        return nodes[idx]
+    
+    def get_until(condition):
+        while has_next() and not condition(peek()):
+            yield next()
 
-    for h2 in h2s:
-        title = h2.get_text(strip=True)
-        # zbierz nodes należące do tego źródła: od h2.next_siblings aż do następnego h2
-        block = []
-        for sib in h2.next_siblings:
-            if isinstance(sib, Tag) and re.match(r'^h[2]$', sib.name, re.I):
-                break
-            block.append(sib)
-        lines = text_lines_from_nodes(block)
-        # Heurystyka: znajdź URL (linia zaczynająca się od http/https/www)
-        url = None
+    def get_until_next_source():
+        return get_until(lambda node: is_header_of_type(node, 'h2'))
+        # while has_next() and not is_header_of_type(peek(), 'h2'):
+        #     yield next()
+    
+    def get_type(url_line: str) -> str:
+        if "youtube" in url_line or "youtu.be" in url_line:
+            return TYPE_MOVIE
+        return TYPE_ARTICLE
+
+    sources = []
+    quotes = []
+
+    while has_next():
+        get_until_next_source()
+        title = next().get_text(strip=True)
+        # get all non empty lines until next h2
+        lines = [line for line in text_lines_from_nodes(get_until_next_source()) if line ]
         url_idx = None
+        url = None
         for i, ln in enumerate(lines):
             if re.match(r'^(https?://|www\.)', ln.strip(), re.I):
                 url = ln.strip()
                 url_idx = i
                 break
-        # jeśli URL zgodnie z założeniem powinien być na pierwszej pozycji — ale jeśli nie znaleziono, ustaw None
-        # description: linie od (url_idx+1) aż do pierwszego '--' (exclusive)
-        description_lines = []
-        quotes = []
-        # znajdź indeks pierwszego separatora '--'
+        if url is None:
+            raise Exception(f"Cannot find url for {title}")
+        
+        description = lines_to_text(lines[0:url_idx])
         sep_indices = [i for i, ln in enumerate(lines) if is_separator(ln)]
-        first_sep = sep_indices[0] if sep_indices else None
-
-        if url_idx is None:
-            # jeśli nie znaleziono URL, traktujemy pierwszą linię jako URL tylko jeśli wygląda jak link; już sprawdziliśmy
-            # brak URL — description do pierws_sep
-            desc_start = 0
-        else:
-            desc_start = url_idx + 1
-
-        if first_sep is None:
-            # brak separatorów: wszystkie linie od desc_start do końca jako description
-            description_lines = lines[desc_start:]
-        else:
-            description_lines = lines[desc_start:first_sep]
-            # cytaty: podziel resztę na bloki oddzielone '--'
-            # utwórz listę bloków między separatorami
-            rest = lines[first_sep+1:]
-            # split by '--' markers:
-            cur = []
-            for ln in rest:
-                if is_separator(ln):
-                    if cur:
-                        quotes.append(' '.join(l.strip() for l in cur if l.strip()))
-                        cur = []
-                else:
-                    cur.append(ln)
-            if cur:
-                quotes.append(' '.join(l.strip() for l in cur if l.strip()))
-        # łączymy description linie według przyjętej reguły B: join with spaces
-        description = ' '.join(l for l in (description_lines or [])).strip() or None
-        quote_objs = [Quote(text=q, source=title) for q in quotes if q.strip()]
-        sources.append(Source(title=title, url=url, description=description, quotes=quote_objs))
-    return sources
+        source = Source(title=title, url=url, description=description, type=get_type(url))
+        sources.append(source)
+        
+        if len(sep_indices) > 0:
+            prev_sep_idx = sep_indices[0]
+            sep_indices.append(len(lines))
+            for sep_idx in sep_indices[1:]:
+                quote_lines = lines[prev_sep_idx+1:sep_idx]
+                prev_sep_idx = sep_idx
+                if quote_lines:
+                    quotes.append(Quote(text=lines_to_text(quote_lines), source=source))
+    return sources, quotes
 
 def parse_summary_section(nodes) -> List[str]:
     lines = text_lines_from_nodes(nodes)
@@ -280,21 +307,22 @@ def to_serializable(result):
     # Konwertujemy dataclass do struktur słownikowych dla JSON
     return {
         "sources": [asdict(s) for s in result['sources']],
+        "quotes": [asdict(s) for s in result['quotes']],
         "summary": result['summary'],
         "mentions": [asdict(m) for m in result['mentions']],
     }
 
 def main():
     if len(sys.argv) < 2:
-        print("Użycie: python parse_gdoc.py <link_do_google_doc> [--output json] [--out-file filename.json]")
+        print("Użycie: python parse_gdoc.py <link_do_google_doc> [--output wiki] [--out-file filename.json]")
         sys.exit(1)
     link = sys.argv[1]
-    out_json = False
+    out_wiki = False
     out_file = None
     if '--output' in sys.argv:
         i = sys.argv.index('--output')
-        if i+1 < len(sys.argv) and sys.argv[i+1].lower() == 'json':
-            out_json = True
+        if i+1 < len(sys.argv) and sys.argv[i+1].lower() == 'wiki':
+            out_wiki = True
     if '--out-file' in sys.argv:
         i = sys.argv.index('--out-file')
         if i+1 < len(sys.argv):
@@ -312,32 +340,32 @@ def main():
     summary_nodes = section_nodes_between(soup, 'Streszczenie')
     mentions_nodes = section_nodes_between(soup, 'Wzmianki')
 
-    sources = parse_sources_section(src_nodes)
-    summary = parse_summary_section(summary_nodes)
-    mentions = parse_mentions_section(mentions_nodes)
+    sources, quotes = parse_sources_section(src_nodes)
+    # summary = parse_summary_section(summary_nodes)
+    # mentions = parse_mentions_section(mentions_nodes)
 
     result = {
         "sources": sources,
-        "summary": summary,
-        "mentions": mentions
+        "quotes": quotes,
+        # "summary": summary,
+        # "mentions": mentions
     }
 
-    if out_json or out_file:
-        serial = to_serializable(result)
-        json_text = json.dumps(serial, ensure_ascii=False, indent=2)
-        if out_file:
-            with open(out_file, 'w', encoding='utf-8') as f:
-                f.write(json_text)
-            print(f"Zapisano JSON do {out_file}")
-        else:
-            print(json_text)
+    if out_wiki or out_file:
+        
+        print("== Komentarze ==")
+        print(lines_to_text([quote.to_wikicode() for quote in quotes]))
+
+        print("== Źródła ==")
+        print(lines_to_text([source.to_wikicode() for source in sources]))
+        
     else:
         # wydrukuj przyjazną reprezentację
         from pprint import pprint
         printable = {
             "sources": [asdict(s) for s in sources],
-            "summary": summary,
-            "mentions": [asdict(m) for m in mentions],
+            # "summary": summary,
+            # "mentions": [asdict(m) for m in mentions],
         }
         pprint(printable, width=140, compact=False)
 
