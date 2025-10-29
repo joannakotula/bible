@@ -24,6 +24,8 @@ from typing import List, Optional
 import requests
 from bs4 import BeautifulSoup, Tag, NavigableString
 from urllib.parse import urlparse, parse_qs
+import argparse
+from enum import Enum
 
 EXPORT_HTML_TEMPLATE = "https://docs.google.com/document/d/{doc_id}/export?format=html"
 
@@ -71,6 +73,10 @@ class BibleVerse:
         return f"""
 TODO
         """
+    
+class Format(Enum):
+    wiki = "wiki"
+    pretty = "pretty"
 
 def extract_doc_id(url: str) -> Optional[str]:
     m = re.search(r"/d/([a-zA-Z0-9-_]+)", url)
@@ -313,23 +319,15 @@ def to_serializable(result):
     }
 
 def main():
-    if len(sys.argv) < 2:
-        print("Użycie: python parse_gdoc.py <link_do_google_doc> [--output wiki] [--out-file filename.json]")
-        sys.exit(1)
-    link = sys.argv[1]
-    out_wiki = False
-    out_file = None
-    if '--output' in sys.argv:
-        i = sys.argv.index('--output')
-        if i+1 < len(sys.argv) and sys.argv[i+1].lower() == 'wiki':
-            out_wiki = True
-    if '--out-file' in sys.argv:
-        i = sys.argv.index('--out-file')
-        if i+1 < len(sys.argv):
-            out_file = sys.argv[i+1]
+    parser = argparse.ArgumentParser(description="Parse google doc and prepare wiki structure")
+    parser.add_argument("gdoc_link")
+    parser.add_argument("--out", "--output", "-o", type=argparse.FileType("w", encoding="UTF-8"), default=sys.stdout)
+    parser.add_argument("--format", "-f", type=Format, choices=[f for f in Format], default=Format.wiki)
+
+    args = parser.parse_args()
 
     try:
-        html = fetch_doc_html(link)
+        html = fetch_doc_html(args.gdoc_link)
     except Exception as e:
         print(f"Błąd pobierania dokumentu: {e}")
         sys.exit(2)
@@ -341,33 +339,29 @@ def main():
     mentions_nodes = section_nodes_between(soup, 'Wzmianki')
 
     sources, quotes = parse_sources_section(src_nodes)
-    # summary = parse_summary_section(summary_nodes)
-    # mentions = parse_mentions_section(mentions_nodes)
+    summary = parse_summary_section(summary_nodes)
+    mentions = parse_mentions_section(mentions_nodes)
 
-    result = {
-        "sources": sources,
-        "quotes": quotes,
-        # "summary": summary,
-        # "mentions": mentions
-    }
 
-    if out_wiki or out_file:
-        
-        print("== Komentarze ==")
-        print(lines_to_text([quote.to_wikicode() for quote in quotes]))
+    def writeln(line: str):
+        print(line, file=args.out)
 
-        print("== Źródła ==")
-        print(lines_to_text([source.to_wikicode() for source in sources]))
-        
-    else:
-        # wydrukuj przyjazną reprezentację
-        from pprint import pprint
-        printable = {
-            "sources": [asdict(s) for s in sources],
-            # "summary": summary,
-            # "mentions": [asdict(m) for m in mentions],
-        }
-        pprint(printable, width=140, compact=False)
+    
+    match args.format:
+        case Format.wiki:
+            writeln("== Komentarze ==")
+            writeln(lines_to_text([quote.to_wikicode() for quote in quotes]))
+            writeln("== Źródła ==")
+            writeln(lines_to_text([source.to_wikicode() for source in sources]))
+        case Format.pretty:
+            from pprint import pprint
+            printable = {
+                "sources": [asdict(s) for s in sources],
+                "summary": summary,
+                "mentions": [asdict(m) for m in mentions],
+            }
+            pprint(printable, width=140, compact=False, stream=args.out)
+
 
 if __name__ == '__main__':
     main()
