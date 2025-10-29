@@ -114,56 +114,45 @@ def is_valid_fragment(text: str, debug_info: str):
     
 
 def parse_readings(url):
-    def parse_when_proper_classes():
-        readings = {}
-        paragraphs = content.select(f"p.{TITLE_CLASS}, p.{VERSE_CLASS}")
-        current_key = None
-
-        for p in paragraphs:
-            text = p.get_text(strip=True)
-            if not text:
-                continue
-
-            paragraph_class = p['class']
-            if TITLE_CLASS in paragraph_class:
-                current_key = get_key_from_title(text)
-            elif current_key and VERSE_CLASS in paragraph_class:
-                match_book_chapter=re.match("([\d]? ?\w+) (\d+.*)", text)
-                if match_book_chapter:
-                    readings[current_key] = text
-                else:
-                    print(f"Verse: '{text}' doesn't look like Bible verse (for {url})", file=sys.stderr)
-        return readings
-    
-    def parse_when_no_classes():
-        readings = {}
-        all_paragraphs = content.select("p")
-        for p in all_paragraphs:
-            text = p.get_text(strip=True)
-            if not text:
-                continue
-            matching_name = get_matching_key_name(text)
-            if matching_name:
-                key = READING_KEYS_MAP[matching_name]
-                fragment = text[len(matching_name):].strip()
-                if fragment.startswith(LONGER_PREFIX):
-                    fragment = fragment[len(LONGER_PREFIX)+1:].strip
-                if not fragment.startswith(SHORTER_PREFIX):
-                    readings[key] = fragment
-        return readings
-
     res = requests.get(url)
     soup = BeautifulSoup(res.text, "html.parser")
     content = soup.select_one("div.txt__content")
     if not content:
         return {}
-    
-    readings = parse_when_proper_classes()
-    if not readings:
-        readings = parse_when_no_classes()
+    current_key = None
+    readings = {}
+
+    def add_reading(key: str, text: str):
+        nonlocal current_key
+        nonlocal readings
+        readings[key] = text
+        current_key = None
+
+    all_paragraphs = content.select("p")
+    for p in all_paragraphs:
+        text = p.get_text(strip=True)
+        if not text:
+            continue
+        paragraph_class = p.get('class', '')
+        if TITLE_CLASS in paragraph_class:
+            current_key = get_key_from_title(text)
+        elif current_key and VERSE_CLASS in paragraph_class:
+            if is_valid_fragment(text, debug_info=url):
+                add_reading(current_key, text)
+        elif current_key and is_valid_fragment(text, debug_info=url):
+            add_reading(current_key, text)
+        else:
+            matching_name = get_matching_key_name(text)
+            if matching_name:
+                key = READING_KEYS_MAP[matching_name]
+                fragment = text[len(matching_name):].strip()
+                if fragment.startswith(LONGER_PREFIX):
+                    fragment = fragment[len(LONGER_PREFIX)+1:].strip()
+                if not fragment.startswith(SHORTER_PREFIX) and is_valid_fragment(fragment, debug_info=url):
+                    add_reading(key, fragment)
 
     if not readings:
-        print(f"Still no readings for {url}", file=sys.stderr)
+        print(f"No readings for {url}", file=sys.stderr)
     return readings
 
 def collect_all_readings():

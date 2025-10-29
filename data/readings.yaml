@@ -155,6 +155,7 @@
 - name: III Niedziela Adwentu rok C
   periods: *id003
   readings:
+    first: So 3, 14-17
     gospel: Łk 3, 10-18
     psalm: 'Iz 12, 2. 3 i 4bcd. 5-6 (R.: por. 6)'
     second: Flp 4, 4-7
@@ -311,6 +312,14 @@
     psalm: 'Ps 84 (83), 2-3. 5-6. 9-10 (R.: por. 5a)'
     second: 1 J 3, 1-2. 21-24
   url: https://liturgia.wiara.pl/doc/413562.Niedziela-w-oktawie-Narodzenia-Panskiego-Swieto-Swietej-Rodziny
+- name: 2 Niedziela po Narodzeniu Pańskim
+  periods: *id006
+  readings:
+    first: Syr 24, 1-2. 8-12
+    gospel: J 1, 1-18
+    psalm: 'Ps 147B, 12-13. 14-15. 19-20 (R.: por. J 1, 14)'
+    second: Ef 1, 3-6. 15-18
+  url: https://liturgia.wiara.pl/doc/410532.2-Niedziela-po-Narodzeniu-Panskim
 - name: 26 grudnia - świętego Szczepana, pierwszego męczennika
   periods: *id006
   readings:
@@ -850,6 +859,7 @@
   readings:
     first: Iz 50, 4-9a
     gospel: Mt 26, 14-25
+    psalm: 'Ps 69 (68), 8-10. 21-22. 31 i 33-34 (R.: por. 14c)'
   url: https://liturgia.wiara.pl/doc/413077.Wielka-Sroda
 - name: Wielki Czwartek - Msza z poświęceniem krzyżma
   periods: *id013
@@ -1099,7 +1109,7 @@
   periods: *id018
   readings:
     first: Dz 11, 1-18
-    gospel: J 10, 11-18
+    gospel: J 10, 1-10
     psalm: 'Ps 42 (41), 2-3; Ps 43 (42), 3. 4 (R.: por. Ps 42 [41], 3ab)'
   url: https://liturgia.wiara.pl/doc/413301.Poniedzialek-IV-tygodnia-wielkanocnego
 - name: Wtorek IV tygodnia wielkanocnego
@@ -1530,6 +1540,7 @@
     first: Iz 62, 1-5
     gospel: J 2, 1-11
     psalm: 'Ps 96 (95), 1-2a. 2b-3. 7-8. 9 i 10ac (R.: por. 3)'
+    second: 1 Kor 12, 4-11
   url: https://liturgia.wiara.pl/doc/410991.II-Niedziela-Zwykla-rok-C
 - name: Poniedziałek, II tydzień zwykły, rok I
   periods: *id024
@@ -2172,6 +2183,7 @@
   readings:
     first: Iz 49, 14-15
     gospel: Mt 6, 24-34
+    psalm: 'Ps 62 (61), 2-3. 6-7. 8-9b (R.: por. 6a)'
     second: 1 Kor 4, 1-5
   url: https://liturgia.wiara.pl/doc/416213.8-Niedziela-zwykla-rok-A
 - name: 8. Niedziela zwykła, rok B
@@ -2512,6 +2524,14 @@
     psalm: 'Ps 92 (91), 2-3. 13-14. 15-16 (R.: por. 2)'
     second: 2 Kor 5, 6-10
   url: https://liturgia.wiara.pl/doc/417212.11-Niedziela-zwykla-rok-B
+- name: 11. Niedziela zwykła, rok C
+  periods: *id033
+  readings:
+    first: 2 Sm 12, 1. 7b-10. 13
+    gospel: Łk 7, 36 – 8, 3
+    psalm: 'Ps 32 (31), 1b-2. 5. 7 i 11 (R.: por. 5d)'
+    second: Ga 2, 16. 19-21
+  url: https://liturgia.wiara.pl/doc/417213.11-Niedziela-zwykla-rok-C
 - name: Poniedziałek, XI tydzień zwykły, rok I
   periods: *id033
   readings:
@@ -2557,6 +2577,7 @@
 - name: Czwartek, XI tydzień zwykły, rok I
   periods: *id033
   readings:
+    first: 2 Kor 11, 1-11
     gospel: Mt 6, 7-15
     psalm: 'Ps 111 (110), 1b-2. 3-4. 7-8 (R.: por. 7a)'
   url: https://liturgia.wiara.pl/doc/417231.Czwartek-XI-tydzien-zwykly-rok-I
@@ -2872,9 +2893,9 @@
 - name: Środa, XIV tydzień zwykły, rok I
   periods: *id036
   readings:
-    first: ''
-    gospel: ''
-    psalm: ''
+    first: Rdz 41, 55-57; 42, 5-7. 14-15a. 17-24a
+    gospel: Mt 10, 1-7
+    psalm: 'Ps 33 (32), 2-3. 10-11. 18-19 (R.: por. 22)'
   url: https://liturgia.wiara.pl/doc/426652.Sroda-XIV-tydzien-zwykly-rok-I
 - name: Środa, XIV tydzień zwykły, rok II
   periods: *id036
@@ -2931,7 +2952,7 @@
   - 15 tydzień zwykły
   readings:
     first: Iz 55, 10-11
-    gospel: KRÓTSZAMt 13, 1-9
+    gospel: Mt 13, 1-23
     psalm: 'Ps 65 (64), 10abcd. 10e-11. 12-13. 14 (R.: por. Łk 8, 8)'
     second: Rz 8, 18-23
   url: https://liturgia.wiara.pl/doc/426794.Niedziela-rok-A
@@ -2941,7 +2962,7 @@
     first: Am 7, 12-15
     gospel: Mk 6, 7-13
     psalm: 'Ps 85 (84), 9ab i 10. 11-12. 13-14 (R.: por. 8)'
-    second: KRÓTSZEEf 1, 3-10
+    second: Ef 1, 3-14
   url: https://liturgia.wiara.pl/doc/426793.Niedziela-rok-B
 - name: 15 Niedziela Zwykła rok C
   periods: *id037
@@ -3042,7 +3063,7 @@
   - 16 tydzień zwykły
   readings:
     first: Mdr 12, 13. 16-19
-    gospel: KRÓTSZAMt 13, 24-30
+    gospel: Mt 13, 24-43
     psalm: 'Ps 86 (85), 5-6. 9-10. 15-16a (R.: por. 5a)'
     second: Rz 8, 26-27
   url: https://liturgia.wiara.pl/doc/430394.Niedziela-rok-A
@@ -3093,6 +3114,7 @@
 - name: Środa, XVI tydzień zwykły, rok I
   periods: *id038
   readings:
+    first: Wj 16, 1-5. 9-15
     gospel: Mt 13, 1-9
     psalm: 'Ps 78 (77), 18-19. 23-24. 25-26. 27-28 (R.: por. 24b)'
   url: https://liturgia.wiara.pl/doc/430389.Sroda-XVI-tydzien-zwykly-rok-I
@@ -3151,7 +3173,7 @@
   - 17 tydzień zwykły
   readings:
     first: 1 Krl 3, 5. 7-12
-    gospel: KRÓTSZAMt 13, 44-46
+    gospel: Mt 13, 44-52
     psalm: 'Ps 119 (118), 57 i 72. 76-77. 127-128. 129-130 (R.: 97a)'
     second: Rz 8, 28-30
   url: https://liturgia.wiara.pl/doc/430480.Niedziela-rok-A
@@ -3285,14 +3307,14 @@
   periods: *id040
   readings:
     first: Lb 11, 4b-15
-    gospel: Mt 14, 22-36
+    gospel: Mt 14, 13-21
     psalm: 'Ps 81 (80), 12-13. 14-15. 16-17 (R.: por. 2a)'
   url: https://liturgia.wiara.pl/doc/430575.Poniedzialek-XVIII-tydzien-zwykly-rok-I
 - name: Poniedziałek, XVIII tydzień zwykły, rok II
   periods: *id040
   readings:
     first: Jr 28, 1-17
-    gospel: Mt 14, 22-36
+    gospel: Mt 14, 13-21
     psalm: 'Ps 119 (118), 29 i 43. 79-80. 95 i 102 (R.: por. 68b)'
   url: https://liturgia.wiara.pl/doc/430569.Poniedzialek-XVIII-tydzien-zwykly-rok-II
 - name: Wtorek, XVIII tydzień zwykły, rok I
@@ -3306,7 +3328,7 @@
   periods: *id040
   readings:
     first: Jr 30, 1-2. 12-15. 18-22
-    gospel: Mt 15, 1-2. 10-14
+    gospel: Mt 14, 22-36
     psalm: 'Ps 102 (101), 16-17. 18-19. 20-21. 29 i 22-23 (R.: por. 17)'
   url: https://liturgia.wiara.pl/doc/430568.Wtorek-XVIII-tydzien-zwykly-rok-II
 - name: Środa, XVIII tydzień zwykły, rok I
@@ -3389,7 +3411,7 @@
     first: Mdr 18, 6-9
     gospel: Łk 12, 35-40
     psalm: 'Ps 33 (32), 1 i 12. 18-19. 20 i 22 (R.: por. 12)'
-    second: KRÓTSZEHbr 11, 1-2. 8-12
+    second: Hbr 11, 1-2. 8-19
   url: https://liturgia.wiara.pl/doc/556985.19-Niedziela-Zwykla-rok-C
 - name: Poniedziałek, XIX tydzień zwykły, rok I
   periods: *id041
@@ -3457,7 +3479,7 @@
 - name: Piątek, XIX tydzień zwykły, rok II
   periods: *id041
   readings:
-    first: Ez 16, 59-63
+    first: Ez 16, 1-15. 60. 63
     gospel: Mt 19, 3-12
     psalm: 'Iz 12, 2. 3 i 4bcd. 5-6 (R.: por. 1d)'
   url: https://liturgia.wiara.pl/doc/556993.Piatek-XIX-tydzien-zwykly-rok-II
@@ -4143,7 +4165,7 @@
     first: Ez 18, 25-28
     gospel: Mt 21, 28-32
     psalm: 'Ps 25 (24), 4-5. 6-7. 8-9 (R.: por. 6a)'
-    second: KRÓTSZEFlp 2, 1-5
+    second: Flp 2, 1-11
   url: https://liturgia.wiara.pl/doc/417348.26-Niedziela-zwykla-Rok-A
 - name: 26 Niedziela zwykła, Rok B
   periods: *id048
@@ -4259,7 +4281,7 @@
   periods: *id049
   readings:
     first: Rdz 2, 18-24
-    gospel: KRÓTSZAMk 10, 2-12
+    gospel: Mk 10, 2-16
     psalm: 'Ps 128 (127), 1b-2. 3-4. 5-6 (R.: por. 5)'
     second: Hbr 2, 9-11
   url: https://liturgia.wiara.pl/doc/416879.27-Niedziela-zwykla-Rok-B
@@ -4361,7 +4383,7 @@
   - 28 tydzień zwykły
   readings:
     first: Iz 25, 6-10a
-    gospel: KRÓTSZAMt 22, 1-10
+    gospel: Mt 22, 1-14
     psalm: 'Ps 23 (22), 1b-3a. 3b-4. 5. 6 (R.: por. 6cd)'
     second: Flp 4, 12-14. 19-20
   url: https://liturgia.wiara.pl/doc/416414.28-Niedziela-zwykla-Rok-A
@@ -4369,7 +4391,7 @@
   periods: *id050
   readings:
     first: Mdr 7, 7-11
-    gospel: KRÓTSZAMk 10, 17-27
+    gospel: Mk 10, 17-30
     psalm: 'Ps 90 (89), 12-13. 14-15. 16-17 (R.: por. 14a)'
     second: Hbr 4, 12-13
   url: https://liturgia.wiara.pl/doc/416413.28-Niedziela-zwykla-Rok-B
@@ -5275,6 +5297,7 @@
   readings:
     first: Kol 3, 14-15. 17. 23-24
     gospel: Mt 13, 54-58
+    psalm: Ps 90 (89), 2 i 4. 12-13. 14 i 16
   url: https://liturgia.wiara.pl/doc/6280922.1-maja-sw-Jozefa-rzemieslnika
 - name: 3 maja - uroczystość NMP Królowej Polski, głównej patronki Polski
   periods: *id059
@@ -5316,7 +5339,7 @@
 - name: 31 maja - Nawiedzenie NMP
   periods: *id059
   readings:
-    first: Rz 12,9-16b
+    first: So 3,14-18
     gospel: Łk 1,39-56
     psalm: Iz 12,2-3.4bcde.5-6
   url: https://liturgia.wiara.pl/doc/432975.31-maja-Nawiedzenie-NMP
@@ -5338,14 +5361,14 @@
 - name: Jezusa Chrystusa Najwyższego Kapłana (B)
   periods: *id059
   readings:
-    first: Hbr 10, 11-18
+    first: Jr 31, 31-34
     gospel: Mk 14, 22-25
     psalm: 'Ps 110 (109), 1bcde. 2-3 (R.: por. 4b)'
   url: https://liturgia.wiara.pl/doc/2506622.Jezusa-Chrystusa-Najwyzszego-Kaplana-B
 - name: Jezusa Chrystusa Najwyższego Kapłana (C)
   periods: *id059
   readings:
-    first: Hbr 2, 10-18
+    first: Iz 6, 1-4. 8
     gospel: J 17, 1-2. 9. 14-26
     psalm: 'Ps 23 (22), 2-3. 5. 6 (R.: por. 1b)'
   url: https://liturgia.wiara.pl/doc/1546224.Jezusa-Chrystusa-Najwyzszego-Kaplana-C
@@ -5488,7 +5511,8 @@
 - name: 29 lipca - św. Marty
   periods: *id059
   readings:
-    gospel: Łk 10, 38-42
+    first: 1 J 4, 7-16
+    gospel: J 11,19-27
     psalm: Ps 34,2-3.4-5.6-7.8-9.10-11
   url: https://liturgia.wiara.pl/doc/432654.29-lipca-sw-Marty
 - name: 6 sierpnia - święto Przemienienia Pańskiego Rok A
@@ -5591,7 +5615,7 @@
 - name: 18 września - św. Stanisława Kostki, zakonnika
   periods: *id059
   readings:
-    first: 1 J 2,12-17
+    first: Mdr 4,7-15
     gospel: Łk 2,41-52
     psalm: Ps 148,1-2.11-13a.13c-14
   url: https://liturgia.wiara.pl/doc/432618.18-wrzesnia-sw-Stanislawa-Kostki-zakonnika

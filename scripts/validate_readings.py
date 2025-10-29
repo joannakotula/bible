@@ -36,6 +36,29 @@ def check_expected_content(readings_data: dict) -> bool:
         "second": "Ef 1, 3-6. 15-18",
         "gospel": "J 1, 1-18"
       }
+    },
+    "Czwartek, 29 tydzień zwykły, Rok I": {
+      READINGS_KEY: {
+        "gospel": "Łk 12, 49-53"
+      }
+    },
+    "Czwartek, 29 tydzień zwykły, Rok II": {
+      READINGS_KEY: {
+        "gospel": "Łk 12, 49-53"
+      }
+    }, 
+    "Środa, XIV tydzień zwykły, rok I": {
+      READINGS_KEY: {
+        "first": "Rdz 41, 55-57; 42, 5-7. 14-15a. 17-24a",
+        "psalm": "Ps 33 (32), 2-3. 10-11. 18-19 (R.: por. 22)",
+        "gospel": "Mt 10, 1-7"
+      }
+    },
+    # TODO: different gospel for year A and years B/C
+    "Poniedziałek IV tygodnia wielkanocnego": {
+      READINGS_KEY: {
+        "gospel": "J 10, 11-18"
+      }
     }
     # TODO: Vigil of Pentecost
     # TODO: March 4 - St. Casimir the Prince (second)
