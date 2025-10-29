@@ -27,6 +27,9 @@ from urllib.parse import urlparse, parse_qs
 import argparse
 from enum import Enum
 
+from lib.books import abbr_2_book_data
+from lib.model import Fragment
+
 EXPORT_HTML_TEMPLATE = "https://docs.google.com/document/d/{doc_id}/export?format=html"
 
 TYPE_ARTICLE="artykuł"
@@ -68,11 +71,25 @@ class Quote:
 class BibleVerse:
     verse: str
     content: str
+    internal_link: str
 
     def to_wikicode(self):
-        return f"""
-TODO
-        """
+        return f"""{{{{Cytat biblijny
+    |tekst={self.content}
+    |werset={self.verse}
+    |link_sekcji={self.internal_link}|}}}}
+"""
+    
+    @staticmethod
+    def create(verse: str, content: str):
+        fragments_list:list[Fragment] = Fragment.parse(verse)
+        if not fragments_list:
+            raise Exception(f"Couldn't parse {verse}")
+        fragment = fragments_list[0]
+        full_book = abbr_2_book_data[fragment.book_abbr]['name']
+        internal_link = f"{full_book}#{fragment.book_abbr} {fragment.chapter}"
+        return BibleVerse(verse=verse, content=content, internal_link=internal_link)
+
     
 class Format(Enum):
     wiki = "wiki"
@@ -300,7 +317,7 @@ def parse_mentions_section(nodes) -> List[BibleVerse]:
                     # could not extract it — set verse to empty, content to the whole block
                     verse = ''
                     content = joined
-        verses.append(BibleVerse(verse=verse, content=content))
+        verses.append(BibleVerse.create(verse=verse, content=content))
     return verses
 
 def section_nodes_between(soup: BeautifulSoup, h1_title: str):
@@ -349,6 +366,8 @@ def main():
     
     match args.format:
         case Format.wiki:
+            writeln("== Wzmianki w innych księgach Biblii ==")
+            writeln(lines_to_text([mention.to_wikicode() for mention in mentions]))
             writeln("== Komentarze ==")
             writeln(lines_to_text([quote.to_wikicode() for quote in quotes]))
             writeln("== Źródła ==")
