@@ -26,9 +26,10 @@ from bs4 import BeautifulSoup, Tag, NavigableString
 from urllib.parse import urlparse, parse_qs
 import argparse
 from enum import Enum
+from abc import ABC, abstractmethod
 
 from lib.books import abbr_2_book_data
-from lib.model import Fragment
+from lib.model import Fragment, BOOK_CHAPTER_PATTERN
 
 EXPORT_HTML_TEMPLATE = "https://docs.google.com/document/d/{doc_id}/export?format=html"
 
@@ -42,8 +43,13 @@ TYPE_MOVIE="film"
 # other types: playlist channel book podcast
 
 
+class WikiElement(ABC):
+    @abstractmethod
+    def to_wikicode(self):
+        pass
+
 @dataclass
-class Source:
+class Source(WikiElement):
     title: str
     url: str
     description: str
@@ -59,7 +65,7 @@ class Source:
 }}}}"""        
 
 @dataclass
-class Quote:
+class Quote(WikiElement):
     text: str
     source: Source
 
@@ -73,7 +79,7 @@ class Quote:
 
 
 @dataclass
-class BibleVerse:
+class BibleVerse(WikiElement):
     verse: str
     content: str
     internal_link: str
@@ -95,6 +101,23 @@ class BibleVerse:
         internal_link = f"{full_book}#{fragment.book_abbr} {fragment.chapter}"
         return BibleVerse(verse=verse, content=content, internal_link=internal_link)
 
+    @staticmethod
+    def parse(text: str):
+        if ':' in text:
+            idx = text.index(':')
+            return BibleVerse.create(verse=text[:idx].strip(), content=text[idx+1:].strip())
+        else:
+            # fallback: try to match a pattern like "Ps 23, 1-4" at the beginning
+            m = re.match(r'^([A-Za-ząćęłńóśżźĄĆĘŁŃÓŚŻŹ0-9\.,\s]+)\s+-\s+(.*)$', text)
+            if m:
+                return BibleVerse.create(verse = m.group(1).strip(), content = m.group(2).strip())
+            else:
+                # finally: try to split after the first few tokens if it looks like a ref
+                m2 = re.match(r'^([A-Za-z]{1,4}\s*\d{1,3}[,\d\-]*)\s+(.*)$', text)
+                if m2:
+                    return BibleVerse.create(verse = m2.group(1).strip(), content = m2.group(2).strip())
+                else:
+                    raise Exception(f"Not a Bible verse: {text}")
 
 @dataclass
 class Section:
@@ -102,9 +125,10 @@ class Section:
     elements: list
 
     def to_wikicode(self):
-        return f"""
-== {self.name} ==
-{lines_to_text([el.to_wikicode() for el in self.elements])}
+        content = lines_to_text([el.to_wikicode() if isinstance(el, WikiElement) else f'{el}\n' for el in self.elements])
+        return f"""== {self.name} ==
+
+{content}
 """
 
     def to_dict(self):
@@ -287,13 +311,19 @@ def parse_sources_section(nodes) -> List[Source]:
 
 def parse_summary_section(nodes) -> List[str]:
     lines = text_lines_from_nodes(nodes)
-    items = []
-    for ln in lines:
+    
+    def parse_line(line):
         # remove bullets such as •, -, *, numbering "1." etc.
-        cleaned = re.sub(r'^[\u2022\-\*\s\d\.\)]+', '', ln).strip()
+        cleaned = re.sub(r'^[\u2022\-\*\s\d\.\)]+', '', line).strip()
         if cleaned:
-            items.append(cleaned)
-    return items
+            if is_separator(cleaned):
+                return ""
+            if re.match(BOOK_CHAPTER_PATTERN, cleaned):
+                return BibleVerse.parse(cleaned)
+            return cleaned
+        return None
+
+    return [element for line in lines if (element := parse_line(line)) is not None]
 
 def parse_mentions_section(nodes) -> List[BibleVerse]:
     """
