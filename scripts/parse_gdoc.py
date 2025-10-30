@@ -32,6 +32,11 @@ from lib.model import Fragment
 
 EXPORT_HTML_TEMPLATE = "https://docs.google.com/document/d/{doc_id}/export?format=html"
 
+SUMMARY_TITLE = 'Streszczenie'
+SOURCES_TITLE = 'Źródła'
+MENTIONS_TITLE = 'Wzmianki'
+COMMENTS_TITLE = 'Komentarze'
+
 TYPE_ARTICLE="artykuł"
 TYPE_MOVIE="film"
 # other types: playlist channel book podcast
@@ -90,10 +95,31 @@ class BibleVerse:
         internal_link = f"{full_book}#{fragment.book_abbr} {fragment.chapter}"
         return BibleVerse(verse=verse, content=content, internal_link=internal_link)
 
+
+@dataclass
+class Section:
+    name: str
+    elements: list
+
+    def to_wikicode(self):
+        return f"""
+== {self.name} ==
+{lines_to_text([el.to_wikicode() for el in self.elements])}
+"""
+
+    def to_dict(self):
+        return {self.name: [asdict(s) for s in self.elements]}
+
     
 class Format(Enum):
     wiki = "wiki"
     pretty = "pretty"
+
+class SectionName(Enum):
+    summary = "summary"
+    quotes = "quotes"
+    mentions = "mentions"
+    sources = "sources"
 
 def extract_doc_id(url: str) -> Optional[str]:
     m = re.search(r"/d/([a-zA-Z0-9-_]+)", url)
@@ -326,22 +352,46 @@ def section_nodes_between(soup: BeautifulSoup, h1_title: str):
         return []
     return collect_until_next_h1(h1)
 
-def to_serializable(result):
-    # Convert the dataclass to dictionary structures for JSON
-    return {
-        "sources": [asdict(s) for s in result['sources']],
-        "quotes": [asdict(s) for s in result['quotes']],
-        "summary": result['summary'],
-        "mentions": [asdict(m) for m in result['mentions']],
-    }
+class ArticleDataParser:
+    def __init__(self, soup: BeautifulSoup) -> None:
+        self.soup = soup
+        self.sections = {}
+    
+    def get_section(self, section_name: SectionName):
+        if section_name in self.sections:
+            return self.sections[section_name]
+        return self.__build_section(section_name)
+        
+    def __build_section(self, section_name: SectionName):
+        match section_name:
+            case SectionName.summary:
+                summary_content = parse_summary_section(section_nodes_between(self.soup, SUMMARY_TITLE))
+                section = Section(SUMMARY_TITLE, summary_content)
+                self.sections[section_name] = section
+                return section
+            case SectionName.mentions:
+                mentions_content = parse_mentions_section(section_nodes_between(self.soup, MENTIONS_TITLE))
+                section = Section(MENTIONS_TITLE, mentions_content)
+                self.sections[section_name] = section
+                return section
+            case SectionName.sources | SectionName.quotes:
+                sources, quotes = parse_sources_section(section_nodes_between(self.soup, SOURCES_TITLE))
+                self.sections[SectionName.sources] = Section(SOURCES_TITLE, sources)
+                self.sections[SectionName.quotes] = Section(COMMENTS_TITLE, quotes)
+                return self.sections[section_name]
+
+
+    
 
 def main():
     parser = argparse.ArgumentParser(description="Parse google doc and prepare wiki structure")
     parser.add_argument("gdoc_link")
     parser.add_argument("--out", "--output", "-o", type=argparse.FileType("w", encoding="UTF-8"), default=sys.stdout)
-    parser.add_argument("--format", "-f", type=Format, choices=[f for f in Format], default=Format.wiki)
+    parser.add_argument("--format", "-f", type=Format, choices=list(Format), default=Format.wiki)
+    parser.add_argument("--sections", type=SectionName, nargs="*",  choices=list(SectionName), default=list(SectionName))
 
     args = parser.parse_args()
+    print(args)
 
     try:
         html = fetch_doc_html(args.gdoc_link)
@@ -349,36 +399,21 @@ def main():
         print(f"Błąd pobierania dokumentu: {e}")
         sys.exit(2)
 
-    soup = BeautifulSoup(html, 'html.parser')
+    articleParser = ArticleDataParser(BeautifulSoup(html, 'html.parser'))
 
-    src_nodes = section_nodes_between(soup, 'Źródła')
-    summary_nodes = section_nodes_between(soup, 'Streszczenie')
-    mentions_nodes = section_nodes_between(soup, 'Wzmianki')
-
-    sources, quotes = parse_sources_section(src_nodes)
-    summary = parse_summary_section(summary_nodes)
-    mentions = parse_mentions_section(mentions_nodes)
-
-
-    def writeln(line: str):
-        print(line, file=args.out)
-
+    sections = [section for section_name in args.sections if (section := articleParser.get_section(section_name)) is not None]
+    
+    if not sections:
+        print("No sections to print", file=sys.stderr)
+        exit(1)
     
     match args.format:
         case Format.wiki:
-            writeln("== Wzmianki w innych księgach Biblii ==")
-            writeln(lines_to_text([mention.to_wikicode() for mention in mentions]))
-            writeln("== Komentarze ==")
-            writeln(lines_to_text([quote.to_wikicode() for quote in quotes]))
-            writeln("== Źródła ==")
-            writeln(lines_to_text([source.to_wikicode() for source in sources]))
+            txt = "\n".join([s.to_wikicode() for s in sections])
+            args.out.write(txt)
         case Format.pretty:
             from pprint import pprint
-            printable = {
-                "sources": [asdict(s) for s in sources],
-                "summary": summary,
-                "mentions": [asdict(m) for m in mentions],
-            }
+            printable = {k: v for s in sections for k, v in s.to_dict()}
             pprint(printable, width=140, compact=False, stream=args.out)
 
 
