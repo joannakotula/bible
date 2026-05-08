@@ -16,7 +16,7 @@ WEEKDAY_DAYS_EXCEPTIONS = ['wielki poniedziałek', 'wielki wtorek', 'wielka śro
 FIRST_VERSE = "__FIRST__"
 LAST_VERSE = "__LAST__"
 
-BOOK_CHAPTER_PATTERN = "([\d]? ?\w+) (\d+.*)"
+BOOK_CHAPTER_PATTERN = r"([\d]? ?\w+) (\d+.*)"
 ONE_CHAPTER_BOOKS = ['Flm', '2 J', '3 J', 'Jud']
 
 
@@ -97,10 +97,10 @@ class Fragment(object):
     @staticmethod
     def parse(verses_str: str) -> list:
         def get_verses(rest: str) -> list[tuple]:
-            found_groups=re.findall("(\d\w*)(-(\d\w*))?",rest)
+            found_groups=re.findall(r"(\d\w*)(-(\d\w*))?",rest)
             return [(g[0], g[2] if g[2] else g[0]) for g in found_groups]
         def extract_chapter_from_rest(book: str, one_chapter_content: str) -> tuple[int, str]:
-            match_chapter=re.match("(\d+)[^,\.]*[,\.] ?([^\(]*)", one_chapter_content)
+            match_chapter=re.match(r"(\d+)[^,\.]*[,\.] ?([^\(]*)", one_chapter_content)
             if match_chapter:
                 return (int(match_chapter.group(1)), match_chapter.group(2))
             if book in ONE_CHAPTER_BOOKS:
