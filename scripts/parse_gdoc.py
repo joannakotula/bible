@@ -74,8 +74,7 @@ class Quote(WikiElement):
   |tekst={self.text}
   |link={self.source.url}
   |zrodlo={self.source.title}
-}}}}
-"""        
+}}}}"""        
 
 
 @dataclass
@@ -88,8 +87,7 @@ class BibleVerse(WikiElement):
         return f"""{{{{Cytat biblijny
     |tekst={self.content}
     |werset={self.verse}
-    |link_sekcji={self.internal_link}|}}}}
-"""
+    |link_sekcji={self.internal_link}|}}}}"""
     
     @staticmethod
     def create(verse: str, content: str):
@@ -125,11 +123,8 @@ class Section:
     elements: list
 
     def to_wikicode(self):
-        content = lines_to_text([el.to_wikicode() if isinstance(el, WikiElement) else f'{el}\n' for el in self.elements])
-        return f"""== {self.name} ==
-
-{content}
-"""
+        content = '\n'.join([el.to_wikicode() if isinstance(el, WikiElement) else str(el) for el in self.elements])
+        return f"== {self.name} ==\n\n{content}"
 
     def to_dict(self):
         return {self.name: [asdict(s) for s in self.elements]}
