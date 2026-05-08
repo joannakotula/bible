@@ -95,7 +95,7 @@ class BibleVerse(WikiElement):
         if not fragments_list:
             raise Exception(f"Couldn't parse {verse}")
         fragment = fragments_list[0]
-        full_book = abbr_2_book_data[fragment.book_abbr]['name']
+        full_book = abbr_2_book_data[fragment.book_abbr]['name'].replace('według', 'wg')
         internal_link = f"{full_book}#{fragment.book_abbr} {fragment.chapter}"
         return BibleVerse(verse=verse, content=content, internal_link=internal_link)
 
