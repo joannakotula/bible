@@ -95,9 +95,13 @@ class BibleVerse(WikiElement):
         if not fragments_list:
             raise Exception(f"Couldn't parse {verse}")
         fragment = fragments_list[0]
-        full_book = abbr_2_book_data[fragment.book_abbr]['name'].replace('według', 'wg')
-        internal_link = f"{full_book}#{fragment.book_abbr} {fragment.chapter}"
-        return BibleVerse(verse=verse, content=content, internal_link=internal_link)
+        
+        try:
+            full_book = abbr_2_book_data[fragment.book_abbr]['name'].replace('według', 'wg')
+            internal_link = f"{full_book}#{fragment.book_abbr} {fragment.chapter}"
+            return BibleVerse(verse=verse, content=content, internal_link=internal_link)
+        except Exception as ex:
+            raise Exception(f"Error while parsing {verse} - got {fragment}") from ex
 
     @staticmethod
     def parse(text: str):
@@ -309,7 +313,7 @@ def parse_summary_section(nodes) -> List[str]:
     
     def parse_line(line):
         # usuń punktory typu •, -, *, numeracja "1." itp.
-        cleaned = re.sub(r'^[\u2022\-\*\s\d\.\)]+', '', line).strip()
+        cleaned = re.sub(r'^\s*([\u2022\-\*]|\d[\.\)])\s*', '', line).strip()
         if cleaned:
             if is_separator(cleaned):
                 return ""
