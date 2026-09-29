@@ -53,6 +53,7 @@ class Source(WikiElement):
     title: str
     url: str
     description: str
+    language: str
     type: str
 
 
@@ -62,6 +63,7 @@ class Source(WikiElement):
 |url={self.url}
 |nazwa={self.title}
 |opis={self.description}
+|jezyk={self.language}
 }}}}"""        
 
 @dataclass
@@ -295,7 +297,12 @@ def parse_sources_section(nodes) -> List[Source]:
         
         description = lines_to_text(lines[0:url_idx])
         sep_indices = [i for i, ln in enumerate(lines) if is_separator(ln)]
-        source = Source(title=title, url=url, description=description, type=get_type(url))
+        match = re.match(r"^\((\w+)\)\s*(.*)", title)
+        if match:
+            language, title = match.groups()
+        else:
+            language = "pl"
+        source = Source(title=title, url=url, description=description, type=get_type(url), language=language)
         sources.append(source)
         
         if len(sep_indices) > 0:
