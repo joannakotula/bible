@@ -187,8 +187,8 @@ def text_lines_from_nodes(nodes):
         if not isinstance(n, Tag):
             continue
         # Rozbijamy paragrafy i br na linie
+        txt = n.get_text(separator='\n').strip()
         if n.name in ('p','div'):
-            txt = n.get_text(separator='\n').strip()
             if txt:
                 for l in txt.splitlines():
                     ll = l.strip()
@@ -196,14 +196,18 @@ def text_lines_from_nodes(nodes):
             else:
                 lines.append("")
             continue
-        # nagłówki, li, pre, etc.
-        txt = n.get_text(separator='\n').strip()
         if txt:
-            for l in txt.splitlines():
-                ll = l.strip()
-                lines.append(ll)
+            m = re.match("h([1-6])", n.name)
+            if m:
+                level = int(m.group(1)) + 1
+                header = '=' * level;
+                lines.append(f"{header} {txt} {header}")
             else:
-                lines.append("")
+                for l in txt.splitlines():
+                    ll = l.strip()
+                    lines.append(ll)
+        else:
+            lines.append("")
     return lines
 
 
