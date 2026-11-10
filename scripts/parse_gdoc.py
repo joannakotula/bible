@@ -17,12 +17,13 @@ Note:
 - a multi-line source description is merged into one string, lines joined with a space.
 - mentions may span multiple lines; individual mentions should be separated by a blank line.
 """
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass, asdict, is_dataclass
 import sys
 import re
-from typing import List, Optional
+from typing import Any, Callable, Iterable, Iterator, List, Optional, Sequence
 import requests
-from bs4 import BeautifulSoup, Tag, NavigableString
+from bs4 import BeautifulSoup, Tag
+from bs4.element import NavigableString, PageElement
 from urllib.parse import urlparse, parse_qs
 import argparse
 from enum import Enum
@@ -45,19 +46,19 @@ TYPE_MOVIE="film"
 
 class WikiElement(ABC):
     @abstractmethod
-    def to_wikicode(self):
+    def to_wikicode(self) -> str:
         pass
 
 @dataclass
 class Source(WikiElement):
     title: str
     url: str
-    description: str
+    description: Optional[str]
     language: str
     type: str
 
 
-    def to_wikicode(self):
+    def to_wikicode(self) -> str:
         return f"""{{{{Source
 |typ={self.type}
 |url={self.url}
@@ -68,10 +69,10 @@ class Source(WikiElement):
 
 @dataclass
 class Quote(WikiElement):
-    text: str
+    text: Optional[str]
     source: Source
 
-    def to_wikicode(self):
+    def to_wikicode(self) -> str:
         return f"""{{{{Cytat
   |tekst={self.text}
   |link={self.source.url}
@@ -85,14 +86,14 @@ class BibleVerse(WikiElement):
     content: str
     internal_link: str
 
-    def to_wikicode(self):
+    def to_wikicode(self) -> str:
         return f"""{{{{Cytat biblijny
     |tekst={self.content}
     |werset={self.verse}
     |link_sekcji={self.internal_link}|}}}}"""
     
     @staticmethod
-    def create(verse: str, content: str):
+    def create(verse: str, content: str) -> "BibleVerse":
         fragments_list:list[Fragment] = Fragment.parse(verse)
         if not fragments_list:
             raise Exception(f"Couldn't parse {verse}")
@@ -106,7 +107,7 @@ class BibleVerse(WikiElement):
             raise Exception(f"Error while parsing {verse} - got {fragment}") from ex
 
     @staticmethod
-    def parse(text: str):
+    def parse(text: str) -> "BibleVerse":
         if ':' in text:
             idx = text.index(':')
             return BibleVerse.create(verse=text[:idx].strip(), content=text[idx+1:].strip())
@@ -126,14 +127,14 @@ class BibleVerse(WikiElement):
 @dataclass
 class Section:
     name: str
-    elements: list
+    elements: Sequence[WikiElement | str]
 
-    def to_wikicode(self):
+    def to_wikicode(self) -> str:
         content = '\n'.join([el.to_wikicode() if isinstance(el, WikiElement) else str(el) for el in self.elements])
         return f"== {self.name} ==\n\n{content}"
 
-    def to_dict(self):
-        return {self.name: [asdict(s) for s in self.elements]}
+    def to_dict(self) -> dict[str, list[Any]]:
+        return {self.name: [asdict(s) if is_dataclass(s) else s for s in self.elements]}
 
     
 class Format(Enum):
@@ -168,12 +169,12 @@ def fetch_doc_html(link: str) -> str:
     r.raise_for_status()
     return r.text
 
-def text_lines_from_nodes(nodes):
+def text_lines_from_nodes(nodes: Iterable[PageElement]) -> list[str]:
     """
     Returns a list of text lines from a list of Tag/NavigableString,
     preserving the order.
     """
-    lines = []
+    lines: list[str] = []
     for n in nodes:
         if isinstance(n, NavigableString):
             text = str(n).strip()
@@ -211,10 +212,10 @@ def text_lines_from_nodes(nodes):
     return lines
 
 
-def lines_to_text(lines: list[str]) -> str:
+def lines_to_text(lines: list[str]) -> Optional[str]:
     return ' '.join(l for l in (lines or [])).strip() or None
 
-def find_h1_by_title(soup: BeautifulSoup, title: str):
+def find_h1_by_title(soup: BeautifulSoup, title: str) -> Optional[Tag]:
     title_norm = title.strip().lower()
     # find the h1 element (or an element with a similar heading) with matching text
     for tag in soup.find_all(re.compile('^h[1-6]$')):
@@ -226,15 +227,19 @@ def find_h1_by_title(soup: BeautifulSoup, title: str):
             return tag
     return None
 
-def is_header_of_type(node, header_name : str) -> bool:
-    return isinstance(node, Tag) and re.match(r'^h[1-6]$', node.name, re.I) and node.name.lower() == header_name
+def is_header_of_type(node: PageElement, header_name : str) -> bool:
+    return (
+        isinstance(node, Tag)
+        and re.match(r'^h[1-6]$', node.name, re.I) is not None
+        and node.name.lower() == header_name
+    )
 
-def collect_until_next_h1(start_tag: Tag):
+def collect_until_next_h1(start_tag: Tag) -> list[PageElement]:
     """
     Collect successive siblings from start_tag.next_sibling up to the next h1
     (or the end of the document). Return the list of nodes.
     """
-    nodes = []
+    nodes: list[PageElement] = []
     for sib in start_tag.next_siblings:
         if is_header_of_type(sib, 'h1'):
             return nodes
@@ -242,11 +247,11 @@ def collect_until_next_h1(start_tag: Tag):
         nodes.append(sib)
     return nodes
 
-def is_separator(line: str):
+def is_separator(line: str) -> bool:
     stripped = line.strip()
     return stripped.startswith('--') or stripped.startswith('–')
 
-def parse_sources_section(nodes) -> List[Source]:
+def parse_sources_section(nodes: Sequence[PageElement]) -> tuple[list[Source], list[Quote]]:
     """
     nodes: list of elements belonging to the Sources section (between one H1 and the next H1)
     Logic:
@@ -255,23 +260,23 @@ def parse_sources_section(nodes) -> List[Source]:
     """
     next_node_idx = 0
     nodes_size = len(nodes)
-    def peek():
+    def peek() -> PageElement:
         return nodes[next_node_idx]
     
     def has_next() -> bool:
         return next_node_idx < nodes_size
     
-    def next():
+    def next() -> PageElement:
         nonlocal next_node_idx
         idx = next_node_idx
         next_node_idx += 1
         return nodes[idx]
     
-    def get_until(condition):
+    def get_until(condition: Callable[[PageElement], bool]) -> Iterator[PageElement]:
         while has_next() and not condition(peek()):
             yield next()
 
-    def get_until_next_source():
+    def get_until_next_source() -> Iterator[PageElement]:
         return get_until(lambda node: is_header_of_type(node, 'h2'))
         # while has_next() and not is_header_of_type(peek(), 'h2'):
         #     yield next()
@@ -281,8 +286,8 @@ def parse_sources_section(nodes) -> List[Source]:
             return TYPE_MOVIE
         return TYPE_ARTICLE
 
-    sources = []
-    quotes = []
+    sources: list[Source] = []
+    quotes: list[Quote] = []
 
     while has_next():
         get_until_next_source()
@@ -299,6 +304,7 @@ def parse_sources_section(nodes) -> List[Source]:
         if url is None:
             raise Exception(f"Cannot find url for {title}")
         
+        assert url_idx is not None
         description = lines_to_text(lines[0:url_idx])
         sep_indices = [i for i, ln in enumerate(lines) if is_separator(ln)]
         match = re.match(r"^\((\w+)\)\s*(.*)", title)
@@ -319,10 +325,10 @@ def parse_sources_section(nodes) -> List[Source]:
                     quotes.append(Quote(text=lines_to_text(quote_lines), source=source))
     return sources, quotes
 
-def parse_summary_section(nodes) -> List[str]:
+def parse_summary_section(nodes: Sequence[PageElement]) -> list[str | BibleVerse]:
     lines = text_lines_from_nodes(nodes)
     
-    def parse_line(line):
+    def parse_line(line: str) -> str | BibleVerse | None:
         # remove bullets such as •, -, *, numbering "1." etc.
         cleaned = re.sub(r'^\s*([\u2022\-\*]|\d[\.\)])\s*', '', line).strip()
         if cleaned:
@@ -335,7 +341,7 @@ def parse_summary_section(nodes) -> List[str]:
 
     return [element for line in lines if (element := parse_line(line)) is not None]
 
-def parse_mentions_section(nodes) -> List[BibleVerse]:
+def parse_mentions_section(nodes: Sequence[PageElement]) -> List[BibleVerse]:
     """
     Mentions:
       - may span multiple lines
@@ -345,8 +351,8 @@ def parse_mentions_section(nodes) -> List[BibleVerse]:
         - if there is no ':', take the first word/list up to the first occurrence of two spaces or a dash — as a fallback, put the whole block as content and verse="".
     """
     lines = text_lines_from_nodes(nodes)
-    blocks = []
-    cur = []
+    blocks: list[list[str]] = []
+    cur: list[str] = []
     for ln in lines:
         if ln.strip() == '':
             if cur:
@@ -357,7 +363,7 @@ def parse_mentions_section(nodes) -> List[BibleVerse]:
     if cur:
         blocks.append(cur)
 
-    verses = []
+    verses: list[BibleVerse] = []
     for blk in blocks:
         joined = ' '.join(l.strip() for l in blk).strip()
         if not joined:
@@ -386,7 +392,7 @@ def parse_mentions_section(nodes) -> List[BibleVerse]:
         verses.append(BibleVerse.create(verse=verse, content=content))
     return verses
 
-def section_nodes_between(soup: BeautifulSoup, h1_title: str):
+def section_nodes_between(soup: BeautifulSoup, h1_title: str) -> list[PageElement]:
     h1 = find_h1_by_title(soup, h1_title)
     if not h1:
         return []
@@ -395,14 +401,14 @@ def section_nodes_between(soup: BeautifulSoup, h1_title: str):
 class ArticleDataParser:
     def __init__(self, soup: BeautifulSoup) -> None:
         self.soup = soup
-        self.sections = {}
+        self.sections: dict[SectionName, Section] = {}
     
-    def get_section(self, section_name: SectionName):
+    def get_section(self, section_name: SectionName) -> Section:
         if section_name in self.sections:
             return self.sections[section_name]
         return self.__build_section(section_name)
         
-    def __build_section(self, section_name: SectionName):
+    def __build_section(self, section_name: SectionName) -> Section:
         match section_name:
             case SectionName.summary:
                 summary_content = parse_summary_section(section_nodes_between(self.soup, SUMMARY_TITLE))
@@ -423,7 +429,7 @@ class ArticleDataParser:
 
     
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(description="Parse google doc and prepare wiki structure")
     parser.add_argument("gdoc_link")
     parser.add_argument("--out", "--output", "-o", type=argparse.FileType("w", encoding="UTF-8"), default=sys.stdout)
@@ -453,7 +459,7 @@ def main():
             args.out.write(txt)
         case Format.pretty:
             from pprint import pprint
-            printable = {k: v for s in sections for k, v in s.to_dict()}
+            printable = {k: v for s in sections for k, v in s.to_dict().items()}
             pprint(printable, width=140, compact=False, stream=args.out)
 
 
