@@ -220,8 +220,8 @@ class TestStatsGenerator(unittest.TestCase):
     
 
     # then
-    self.assertEquals(book.chapters[1].stats.verses_count, first_chapter_expected_stats.verses_count)
-    self.assertEquals(book.chapters[2].stats.verses_count, second_chapter_expected_stats.verses_count)
+    self.assertEqual(book.chapters[1].stats.verses_count, first_chapter_expected_stats.verses_count)
+    self.assertEqual(book.chapters[2].stats.verses_count, second_chapter_expected_stats.verses_count)
     self.assertDictEqual(book.chapters[1].stats.data, first_chapter_expected_stats.data)
     self.assertDictEqual(book.chapters[2].stats.data, second_chapter_expected_stats.data)
     self.assertDictEqual(book.stats.data, {
