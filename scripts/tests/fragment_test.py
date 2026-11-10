@@ -4,6 +4,7 @@ from lib.model import Fragment, FIRST_VERSE, LAST_VERSE
 
 class TestFragmentParser(unittest.TestCase):
     @parameterized.expand([
+        ["1 Sm 1, 19-20", [Fragment(book_abbr="1 Sm", chapter=1, first_verse="19", last_verse="20")]],
         ["2 Sm 7, 1-5. 8b-12. 14a. 16", [
             Fragment(book_abbr="2 Sm", chapter=7, first_verse="1", last_verse="5"),
             Fragment(book_abbr="2 Sm", chapter=7, first_verse="8b", last_verse="12"),
