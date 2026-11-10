@@ -20,7 +20,7 @@ class TestReadingParser(unittest.TestCase):
     def test_reading_parser(self):
         data = yaml.safe_load(reading_yaml)
         reading = Reading(data)
-        self.assertEquals(reading.day, LiturgicalDay(
+        self.assertEqual(reading.day, LiturgicalDay(
                 full_name="I Niedziela Wielkiego Postu rok A",
                 day_type=SUNDAY,
                 year='A'
@@ -33,7 +33,7 @@ class TestReadingParser(unittest.TestCase):
 
         }
         for key, value in expectedFragments.items():
-            self.assertEquals(reading.fragments[key], value, key)
+            self.assertEqual(reading.fragments[key], value, key)
 
 
 if __name__ == "__main__":
