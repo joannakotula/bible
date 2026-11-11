@@ -182,8 +182,7 @@ def text_lines_from_nodes(nodes: Iterable[PageElement]) -> list[str]:
                 for l in text.splitlines():
                     ll = l.strip()
                     lines.append(ll)
-            else:
-                lines.append("")
+            # skip whitespace-only text nodes between tags (they are not blank lines)
             continue
         if not isinstance(n, Tag):
             continue
@@ -325,36 +324,110 @@ def parse_sources_section(nodes: Sequence[PageElement]) -> tuple[list[Source], l
                     quotes.append(Quote(text=lines_to_text(quote_lines), source=source))
     return sources, quotes
 
+def _single_fragment(ref: str) -> Optional[Fragment]:
+    try:
+        fragments = Fragment.parse(ref)
+    except Exception:
+        return None
+    if len(fragments) != 1 or fragments[0].book_abbr not in abbr_2_book_data:
+        return None
+    return fragments[0]
+
+
+def _verse_number(value: str) -> Optional[int]:
+    m = re.search(r'\d+', str(value))
+    return int(m.group()) if m else None
+
+
+def _merged_verse_ref(prev_ref: str, next_ref: str) -> Optional[str]:
+    prev = _single_fragment(prev_ref)
+    nxt = _single_fragment(next_ref)
+    if not prev or not nxt:
+        return None
+    if prev.book_abbr != nxt.book_abbr or prev.chapter != nxt.chapter:
+        return None
+    prev_last = _verse_number(prev.last_verse)
+    next_first = _verse_number(nxt.first_verse)
+    if prev_last is None or next_first is None or next_first != prev_last + 1:
+        return None
+    return f"{prev.book_abbr} {prev.chapter}, {prev.first_verse}-{nxt.last_verse}"
+
+
+def _join_contents(first: str, second: str) -> str:
+    return ' '.join(part for part in (first.strip(), second.strip()) if part)
+
+
+def _merge_verse_entries(entries: list[tuple[str, str]]) -> list[tuple[str, str]]:
+    merged: list[tuple[str, str]] = []
+    for ref, content in entries:
+        if merged:
+            prev_ref, prev_content = merged[-1]
+            new_ref = _merged_verse_ref(prev_ref, ref)
+            if new_ref is not None:
+                merged[-1] = (new_ref, _join_contents(prev_content, content))
+                continue
+        merged.append((ref, content))
+    return merged
+
+
+def _split_verse_line(line: str) -> Optional[tuple[str, str]]:
+    if ':' not in line:
+        return None
+    idx = line.index(':')
+    ref = line[:idx].strip()
+    content = line[idx + 1:].strip()
+    if not ref or not re.match(BOOK_CHAPTER_PATTERN, ref):
+        return None
+    if _single_fragment(ref) is None:
+        return None
+    return ref, content
+
+
 def parse_summary_section(nodes: Sequence[PageElement]) -> list[str | BibleVerse]:
     lines = text_lines_from_nodes(nodes)
     
     def parse_line(line: str) -> str | BibleVerse | None:
+        if is_separator(line):
+            return ""
         # remove bullets such as •, -, *, numbering "1." etc.
         cleaned = re.sub(r'^\s*([\u2022\-\*]|\d[\.\)])\s*', '', line).strip()
         if cleaned:
-            if is_separator(cleaned):
-                return ""
             if re.match(BOOK_CHAPTER_PATTERN, cleaned):
                 return BibleVerse.parse(cleaned)
             return cleaned
         return None
 
-    return [element for line in lines if (element := parse_line(line)) is not None]
+    elements: list[str | BibleVerse] = []
+    last_verse: Optional[BibleVerse] = None
+    for line in lines:
+        element = parse_line(line)
+        if element is None:
+            last_verse = None
+            continue
+        if isinstance(element, BibleVerse) and last_verse is not None:
+            new_ref = _merged_verse_ref(last_verse.verse, element.verse)
+            if new_ref is not None:
+                last_verse = BibleVerse.create(new_ref, _join_contents(last_verse.content, element.content))
+                elements[-1] = last_verse
+                continue
+        elements.append(element)
+        last_verse = element if isinstance(element, BibleVerse) else None
+    return elements
 
 def parse_mentions_section(nodes: Sequence[PageElement]) -> List[BibleVerse]:
     """
     Mentions:
-      - may span multiple lines
+      - a single mention may span multiple lines
       - separate mentions are delimited by a blank line (i.e. a block of text)
-      - each block: try to split into 'verse' and 'content' at the first ':'.
-        if there is no ':', take the first token (up to the first '- ' or the first digits) — a simple heuristic:
-        - if there is no ':', take the first word/list up to the first occurrence of two spaces or a dash — as a fallback, put the whole block as content and verse="".
+      - consecutive lines may start with consecutive verses; such entries are merged
+        into a single BibleVerse with a verse range (e.g. "J 2, 1" + "J 2, 2" -> "J 2, 1-2")
+      - blank lines and separator lines (starting with "--" or "–") break merging
     """
     lines = text_lines_from_nodes(nodes)
     blocks: list[list[str]] = []
     cur: list[str] = []
     for ln in lines:
-        if ln.strip() == '':
+        if ln.strip() == '' or is_separator(ln):
             if cur:
                 blocks.append(cur)
                 cur = []
@@ -365,15 +438,27 @@ def parse_mentions_section(nodes: Sequence[PageElement]) -> List[BibleVerse]:
 
     verses: list[BibleVerse] = []
     for blk in blocks:
-        joined = ' '.join(l.strip() for l in blk).strip()
-        if not joined:
-            continue
-        # split at first colon ':'
-        if ':' in joined:
-            idx = joined.index(':')
-            verse = joined[:idx].strip()
-            content = joined[idx+1:].strip()
-        else:
+        entries: list[tuple[str, str]] = []
+        current_ref: Optional[str] = None
+        current_content: list[str] = []
+
+        for line in blk:
+            split = _split_verse_line(line)
+            if split is not None:
+                if current_ref is not None:
+                    entries.append((current_ref, ' '.join(current_content).strip()))
+                current_ref, content = split
+                current_content = [content] if content else []
+            elif current_ref is not None:
+                current_content.append(line.strip())
+
+        if current_ref is not None:
+            entries.append((current_ref, ' '.join(current_content).strip()))
+
+        if not entries:
+            joined = ' '.join(l.strip() for l in blk).strip()
+            if not joined:
+                continue
             # fallback: try to match a pattern like "Ps 23, 1-4" at the beginning
             m = re.match(r'^([A-Za-ząćęłńóśżźĄĆĘŁŃÓŚŻŹ0-9\.,\s]+)\s+-\s+(.*)$', joined)
             if m:
@@ -389,7 +474,10 @@ def parse_mentions_section(nodes: Sequence[PageElement]) -> List[BibleVerse]:
                     # could not extract it — set verse to empty, content to the whole block
                     verse = ''
                     content = joined
-        verses.append(BibleVerse.create(verse=verse, content=content))
+            entries = [(verse, content)]
+
+        for verse, content in _merge_verse_entries(entries):
+            verses.append(BibleVerse.create(verse=verse, content=content))
     return verses
 
 def section_nodes_between(soup: BeautifulSoup, h1_title: str) -> list[PageElement]:
