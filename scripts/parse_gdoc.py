@@ -2,13 +2,18 @@
 """
 parse_gdoc.py
 
-Fetches a public Google Doc and parses sections:
+Fetches a Google Doc or Google Drive folder and parses sections:
  - H1 "Sources"   -> list of Source(title, url, description, quotes: List[Quote])
  - H1 "Summary" -> list of strings
  - H1 "Mentions" -> list of BibleVerse(verse, content)
 
 Usage:
-    python parse_gdoc.py "https://docs.google.com/document/d/<ID>/edit" [--output json] [--out-file wynik.json]
+    python parse_gdoc.py "https://docs.google.com/document/d/<ID>/edit" [--out FILE|DIR]
+    python parse_gdoc.py "https://drive.google.com/drive/folders/<ID>" --out DIR --api-key KEY
+
+Google Drive folders require an API key for public folders or an OAuth access token
+for private folders. These can also be provided through GOOGLE_API_KEY and
+GOOGLE_ACCESS_TOKEN.
 
 Requirements:
     pip install requests beautifulsoup4
@@ -21,18 +26,18 @@ from dataclasses import dataclass, asdict, is_dataclass
 import sys
 import re
 from typing import Any, Callable, Iterable, Iterator, List, Optional, Sequence
-import requests
 from bs4 import BeautifulSoup, Tag
 from bs4.element import NavigableString, PageElement
-from urllib.parse import urlparse, parse_qs
 import argparse
+import os
+import unicodedata
 from enum import Enum
 from abc import ABC, abstractmethod
+from pathlib import Path
 
 from lib.books import abbr_2_book_data
+from lib.google_docs import GoogleApiError, GoogleDriveApi
 from lib.model import Fragment, BOOK_CHAPTER_PATTERN
-
-EXPORT_HTML_TEMPLATE = "https://docs.google.com/document/d/{doc_id}/export?format=html"
 
 SUMMARY_TITLE = 'Streszczenie'
 SOURCES_TITLE = 'Źródła'
@@ -147,27 +152,19 @@ class SectionName(Enum):
     mentions = "mentions"
     sources = "sources"
 
-def extract_doc_id(url: str) -> Optional[str]:
-    m = re.search(r"/d/([a-zA-Z0-9-_]+)", url)
-    if m:
-        return m.group(1)
-    parsed = urlparse(url)
-    q = parse_qs(parsed.query)
-    if 'id' in q:
-        return q['id'][0]
-    return None
+_SLUG_TRANSLATION = str.maketrans({
+    'ą': 'a', 'ć': 'c', 'ę': 'e', 'ł': 'l', 'ń': 'n', 'ó': 'o', 'ś': 's', 'ź': 'z', 'ż': 'z',
+    'Ą': 'A', 'Ć': 'C', 'Ę': 'E', 'Ł': 'L', 'Ń': 'N', 'Ó': 'O', 'Ś': 'S', 'Ź': 'Z', 'Ż': 'Z',
+})
 
-def fetch_doc_html(link: str) -> str:
-    doc_id = extract_doc_id(link)
-    if doc_id:
-        export_url = EXPORT_HTML_TEMPLATE.format(doc_id=doc_id)
-        r = requests.get(export_url, timeout=15)
-        if r.status_code == 200 and r.text.strip():
-            return r.text
-        # fallback: try input link directly
-    r = requests.get(link, timeout=15)
-    r.raise_for_status()
-    return r.text
+
+def slugify(value: str) -> str:
+    value = value.translate(_SLUG_TRANSLATION)
+    value = unicodedata.normalize('NFKD', value).encode('ascii', 'ignore').decode('ascii')
+    value = re.sub(r'[^\w\s-]', '', value)
+    value = re.sub(r'[_\s-]+', '-', value).strip('-').lower()
+    return value or 'document'
+
 
 def text_lines_from_nodes(nodes: Iterable[PageElement]) -> list[str]:
     """
@@ -517,38 +514,72 @@ class ArticleDataParser:
 
     
 
+def render_document(html: str, section_names: Sequence[SectionName], output_format: Format) -> str:
+    article_parser = ArticleDataParser(BeautifulSoup(html, 'html.parser'))
+    sections = [
+        section for section_name in section_names
+        if (section := article_parser.get_section(section_name)) is not None
+    ]
+    if not sections:
+        raise ValueError("No sections to print")
+
+    match output_format:
+        case Format.wiki:
+            return "\n".join(section.to_wikicode() for section in sections)
+        case Format.pretty:
+            from pprint import pformat
+            printable = {key: value for section in sections for key, value in section.to_dict().items()}
+            return pformat(printable, width=140, compact=False)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Parse google doc and prepare wiki structure")
     parser.add_argument("gdoc_link")
-    parser.add_argument("--out", "--output", "-o", type=argparse.FileType("w", encoding="UTF-8"), default=sys.stdout)
+    parser.add_argument("--out", "--output", "-o", type=Path, default=None)
+    parser.add_argument("--api-key", default=os.environ.get("GOOGLE_API_KEY"))
+    parser.add_argument("--access-token", default=os.environ.get("GOOGLE_ACCESS_TOKEN"))
     parser.add_argument("--format", "-f", type=Format, choices=list(Format), default=Format.wiki)
     parser.add_argument("--sections", type=SectionName, nargs="*",  choices=list(SectionName), default=list(SectionName))
 
     args = parser.parse_args()
-    print(args)
+    api = GoogleDriveApi(args.api_key, args.access_token)
+    is_folder = api.is_folder_url(args.gdoc_link)
+
+    if is_folder:
+        if args.out is None or not args.out.is_dir():
+            parser.error("--out must be an existing directory when gdoc_link is a Google Drive folder")
+        if not args.api_key and not args.access_token:
+            parser.error(
+                "Google Drive folder access requires credentials. Set GOOGLE_API_KEY or --api-key "
+                "for a public folder, or GOOGLE_ACCESS_TOKEN or --access-token for a private folder."
+            )
 
     try:
-        html = fetch_doc_html(args.gdoc_link)
+        docs = api.fetch_docs_from_folder(args.gdoc_link) if is_folder else [api.fetch_doc(args.gdoc_link)]
+    except GoogleApiError as e:
+        print(f"Błąd: {e.user_message}", file=sys.stderr)
+        sys.exit(2)
     except Exception as e:
-        print(f"Błąd pobierania dokumentu: {e}")
+        print(f"Błąd pobierania dokumentu: {e}", file=sys.stderr)
         sys.exit(2)
 
-    articleParser = ArticleDataParser(BeautifulSoup(html, 'html.parser'))
+    if is_folder and not docs:
+        parser.error("No Google Docs found in the Google Drive folder")
 
-    sections = [section for section_name in args.sections if (section := articleParser.get_section(section_name)) is not None]
-    
-    if not sections:
-        print("No sections to print", file=sys.stderr)
-        exit(1)
-    
-    match args.format:
-        case Format.wiki:
-            txt = "\n".join([s.to_wikicode() for s in sections])
-            args.out.write(txt)
-        case Format.pretty:
-            from pprint import pprint
-            printable = {k: v for s in sections for k, v in s.to_dict().items()}
-            pprint(printable, width=140, compact=False, stream=args.out)
+    for doc in docs:
+        try:
+            txt = render_document(doc.html, args.sections, args.format)
+        except Exception as e:
+            print(f"Błąd parsowania dokumentu {doc.name}: {e}", file=sys.stderr)
+            sys.exit(2)
+
+        if args.out is None or str(args.out) == '-':
+            sys.stdout.write(txt)
+        elif args.out.is_dir():
+            output_file = args.out / f"{slugify(doc.name)}.txt"
+            output_file.write_text(txt, encoding="UTF-8")
+        else:
+            args.out.write_text(txt, encoding="UTF-8")
 
 
 if __name__ == '__main__':
